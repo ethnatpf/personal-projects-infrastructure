@@ -1,6 +1,6 @@
 ## Bootstrap
 
-Follow these steps to bootstrap a fresh VPS running Ubuntu or Debian.
+Follow these steps to bootstrap a fresh VPS running Ubuntu.
 
 The bootstrap playbook creates a `deploy` user, configures SSH key authentication, and grants administrative privileges through `sudo`.
 
