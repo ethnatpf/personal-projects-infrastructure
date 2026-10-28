@@ -1,2 +1,3 @@
 admin_user: deploy
 ssh_public_key_path: "{{ lookup('env', 'HOME') }}/.ssh/contabo_ansible.pub"
+caddy_email: ethnatpf@gmail.com

@@ -1,0 +1,8 @@
+- name: Validate Caddy configuration
+  ansible.builtin.command:
+    cmd: docker exec caddy-caddy-1 caddy validate --config /etc/caddy/Caddyfile
+  changed_when: false
+
+- name: Reload Caddy configuration
+  ansible.builtin.command:
+    cmd: docker exec caddy-caddy-1 caddy reload --config /etc/caddy/Caddyfile

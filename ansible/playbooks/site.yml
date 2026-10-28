@@ -3,5 +3,9 @@
   become: true
 
   roles:
-    - security
-    - docker
+    - role: security
+      tags: security
+    - role: docker
+      tags: docker
+    - role: caddy
+      tags: caddy

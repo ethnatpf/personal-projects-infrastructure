@@ -1,0 +1,10 @@
+{
+    email {{ caddy_email }}
+}
+
+{% for route in caddy_routes %}
+{{ route.domain }} {
+    reverse_proxy {{ route.upstream }}
+}
+
+{% endfor %}

@@ -1,0 +1,42 @@
+- name: Create Caddy directory
+  ansible.builtin.file:
+    path: "{{ caddy_directory }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Check whether proxy network exists
+  ansible.builtin.command:
+    cmd: docker network inspect proxy
+  register: proxy_network
+  changed_when: false
+  failed_when: false
+
+- name: Create proxy network
+  ansible.builtin.command:
+    cmd: docker network create proxy
+  when: proxy_network.rc != 0
+
+- name: Generate Caddyfile
+  ansible.builtin.template:
+    src: Caddyfile.j2
+    dest: "{{ caddy_directory }}/Caddyfile"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Validate and reload Caddy
+
+- name: Generate Docker Compose configuration
+  ansible.builtin.template:
+    src: compose.yml.j2
+    dest: "{{ caddy_directory }}/compose.yml"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Start Caddy
+  ansible.builtin.command:
+    cmd: docker compose up -d --wait
+    chdir: "{{ caddy_directory }}"
+  changed_when: false
