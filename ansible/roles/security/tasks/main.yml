@@ -1,0 +1,55 @@
+- name: Install security packages
+  ansible.builtin.apt:
+    name:
+      - ufw
+      - unattended-upgrades
+    state: present
+    update_cache: true
+
+- name: Allow SSH connections
+  community.general.ufw:
+    rule: allow
+    port: "22"
+    proto: tcp
+
+- name: Allow HTTP
+  community.general.ufw:
+    rule: allow
+    port: "80"
+    proto: tcp
+
+- name: Allow HTTPS
+  community.general.ufw:
+    rule: allow
+    port: "443"
+    proto: tcp
+
+- name: Deny incoming connections by default
+  community.general.ufw:
+    direction: incoming
+    policy: deny
+
+- name: Allow outgoing connections by default
+  community.general.ufw:
+    direction: outgoing
+    policy: allow
+
+- name: Enable UFW
+  community.general.ufw:
+    state: enabled
+
+- name: Create SSH hardening configuration
+  ansible.builtin.copy:
+    dest: /etc/ssh/sshd_config.d/00-hardening.conf
+    content: |
+      PermitRootLogin no
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+    owner: root
+    group: root
+    mode: "0644"
+    validate: "/usr/sbin/sshd -t -f %s"
+  notify: Validate and reload SSH
+
+- name: Configure automatic security updates
+  ansible.builtin.import_tasks: updates.yml

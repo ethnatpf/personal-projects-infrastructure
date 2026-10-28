@@ -1,0 +1,6 @@
+- name: Configure VPS
+  hosts: production
+  become: true
+
+  roles:
+    - security

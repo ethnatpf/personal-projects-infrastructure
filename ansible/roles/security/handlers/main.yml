@@ -1,0 +1,2 @@
+- name: Validate and reload SSH
+  ansible.builtin.include_tasks: ../tasks/reload_ssh.yml

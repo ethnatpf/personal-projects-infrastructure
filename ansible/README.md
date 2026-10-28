@@ -1,44 +1,153 @@
-# Bootstrap
+## Bootstrap
 
-Follow these steps to bootstrap a fresh VPS
-This assumes the VPS is on ubuntu or debian.
+Follow these steps to bootstrap a fresh VPS running Ubuntu or Debian.
 
-1. Generate an SSH key
+The bootstrap playbook creates a `deploy` user, configures SSH key authentication, and grants administrative privileges through `sudo`.
+
+### 1. Generate an SSH key
+
+On your local machine:
 
 ```bash
 ssh-keygen -t ed25519 -f ~/.ssh/{KEY_NAME} -C "{KEY_NAME}"
 ```
 
-If you choose to use a passphrase, also run
+If your SSH key has a passphrase, load it into an SSH agent:
 
 ```bash
 eval "$(ssh-agent -s)"
+ssh-add ~/.ssh/{KEY_NAME}
 ```
 
-```bash
-ssh-add ~/.ssh/{PRIVATE_KEY_PATH}
-```
+Ansible cannot interactively prompt for an SSH key passphrase in the usual way. The SSH agent allows Ansible to use your unlocked key without removing its passphrase.
 
-Ansible doesn't automatically ask for a passphrase - which will cause an error. This securely keeps the key unlocked so ansible can use it.
+### 2. Configure the inventory
 
-2. Create ini file
-   Duplicate the `inventory/hosts.ini.example` file and call it `hosts.ini`. Fill the values inside it.
+Copy `inventory/hosts.ini.example` to `inventory/hosts.ini` and fill in your VPS information.
 
-3. Variables
-   Make sure all the variables inside `inventory/group_vars/all.yml` are accurate.
+Initially, configure Ansible to connect as `root`, using the authentication method provided by your VPS provider.
 
-4. Install ansible dependencies
+### 3. Configure variables
+
+Check `inventory/group_vars/all.yml` and update the variables for your environment, including the path to your SSH public key.
+
+### 4. Install Ansible dependencies
+
+Make sure Ansible is installed locally, then run:
 
 ```bash
 ansible-galaxy collection install -r requirements.yml
 ```
 
-5. Run the bootstrap playbook
+### 5. Run the bootstrap playbook
 
 ```bash
 ansible-playbook playbooks/bootstrap.yml --ask-pass
 ```
 
-6. Update ansible user
+This connects using the initial root password and configures the `deploy` user.
 
-Inside inventory/hosts.ini, update the ansible user to deploy instead of root.
+### 6. Switch to the deploy user
+
+Update `inventory/hosts.ini` to use:
+
+```ini
+ansible_user=deploy
+ansible_ssh_private_key_file=~/.ssh/{KEY_NAME}
+ansible_ssh_common_args='-o IdentitiesOnly=yes'
+```
+
+Verify that Ansible can connect:
+
+```bash
+ansible production -m ping
+```
+
+You should receive `pong`.
+
+Verify that privilege escalation works:
+
+```bash
+ansible production -b -m command -a "whoami"
+```
+
+The output should be `root`, because `-b` tells Ansible to execute the command using `sudo`.
+
+## Set up the VPS
+
+Once bootstrap is complete, run the main playbook to configure and secure the VPS.
+
+### 1. Apply the configuration
+
+**Warning:** SSH hardening disables password authentication and direct root SSH login. Make sure SSH key authentication works before continuing.
+
+Keep an existing SSH session open while applying security changes.
+
+```bash
+ansible-playbook playbooks/site.yml
+```
+
+The security role configures:
+
+- **UFW firewall:** Blocks incoming connections by default, except SSH (22), HTTP (80), and HTTPS (443).
+- **SSH hardening:** Disables root SSH login and password authentication while keeping public-key authentication enabled.
+- **Security packages:** Installs UFW and unattended-upgrades.
+
+The SSH hardening configuration is stored in `/etc/ssh/sshd_config.d/00-hardening.conf`. Its filename ensures it takes precedence over later configuration snippets, such as those created by cloud-init.
+
+### 2. Verify the configuration
+
+On the VPS, check the firewall:
+
+```bash
+sudo ufw status verbose
+```
+
+It should report `Status: active`.
+
+Validate the SSH configuration:
+
+```bash
+sudo sshd -t
+```
+
+Check the effective SSH authentication settings:
+
+```bash
+sudo sshd -T | grep -E '^(permitrootlogin|passwordauthentication|kbdinteractiveauthentication|pubkeyauthentication) '
+```
+
+Expected values:
+
+```text
+permitrootlogin no
+pubkeyauthentication yes
+passwordauthentication no
+kbdinteractiveauthentication no
+```
+
+Finally, **open a new terminal** and confirm you can still connect using your SSH key:
+
+```bash
+ssh -i ~/.ssh/{KEY_NAME} deploy@{VPS_IP}
+```
+
+Do not close your existing SSH session until the new connection succeeds.
+
+### 3. Re-running the playbook
+
+Ansible is idempotent: running the same playbook again should not make unnecessary changes.
+
+To preview changes without applying them:
+
+```bash
+ansible-playbook playbooks/site.yml --check --diff
+```
+
+To apply changes:
+
+```bash
+ansible-playbook playbooks/site.yml
+```
+
+**Note:** Docker containers with publicly published ports can bypass normal UFW filtering. Internal services should not be exposed directly to the internet.
