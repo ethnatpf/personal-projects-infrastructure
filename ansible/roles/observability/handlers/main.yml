@@ -1,0 +1,5 @@
+- name: Restart Grafana
+  ansible.builtin.command:
+    cmd: docker compose restart grafana
+    chdir: "{{ observability_directory }}"
+  changed_when: true

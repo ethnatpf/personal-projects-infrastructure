@@ -37,37 +37,93 @@
     group: "472"
     mode: "0640"
 
-- name: Generate Prometheus configuration
+- name: Copy Prometheus configuration
   ansible.builtin.template:
     src: prometheus.yml.j2
     dest: "{{ observability_directory }}/prometheus.yml"
     mode: "0644"
 
-- name: Create Grafana provisioning directory
+- name: Create Grafana provisioning directories
   ansible.builtin.file:
-    path: "{{ observability_directory }}/grafana-provisioning/datasources"
+    path: "{{ observability_directory }}/grafana-provisioning/{{ item }}"
     state: directory
     mode: "0755"
+  loop:
+    - datasources
+    - dashboards
+    - plugins
+    - alerting
 
-- name: Generate Grafana data source configuration
+- name: Copy Grafana data source configuration
   ansible.builtin.template:
     src: grafana-datasources.yml.j2
-    dest: "{{ observability_directory }}/grafana-provisioning/datasources/prometheus.yml"
+    dest: "{{ observability_directory }}/grafana-provisioning/datasources/datasources.yml"
     mode: "0644"
 
-- name: Create dashboard directories
-  ansible.builtin.file:
-    path: "{{ observability_directory }}/grafana-provisioning/dashboards"
-    state: directory
-    mode: "0755"
+- name: Copy grafana dashboard configuration
+  ansible.builtin.template:
+    src: dashboards.yml.j2
+    dest: "{{ observability_directory }}/grafana-provisioning/dashboards/dashboards.yml"
+    mode: "0644"
 
-- name: Copy Grafana dashboards and provisioning configuration
+- name: Copy Grafana dashboards
   ansible.builtin.copy:
     src: ../files/dashboards
     dest: "{{ observability_directory }}/grafana-provisioning"
     mode: "0644"
 
-- name: Generate observability Compose file
+- name: Deploy Grafana alerting secret
+  ansible.builtin.template:
+    src: grafana-alerting.env.j2
+    dest: "{{ observability_directory }}/grafana-alerting.env"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+
+- name: Deploy Grafana alerting configuration
+  ansible.builtin.template:
+    src: "{{ item }}"
+    dest: "{{ observability_directory }}/grafana-provisioning/alerting/{{ item | basename | regex_replace('\\.j2$', '') }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - ../files/alerting/contact-points.yml
+    - disk-usage.yml.j2
+    - ../files/alerting/notification-policies.yml
+  notify: Restart Grafana
+
+- name: Create Loki and Alloy configuration directories
+  ansible.builtin.file:
+    path: "{{ observability_directory }}/{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - loki
+    - alloy
+
+- name: Copy Loki configuration
+  ansible.builtin.template:
+    src: loki.yml.j2
+    dest: "{{ observability_directory }}/loki/loki.yml"
+    owner: root
+    group: root
+    mode: "0644"
+  register: loki_config
+
+- name: Copy Alloy configuration
+  ansible.builtin.template:
+    src: alloy.config.j2
+    dest: "{{ observability_directory }}/alloy/config.alloy"
+    owner: root
+    group: root
+    mode: "0644"
+  register: alloy_config
+
+- name: Copy observability Compose file
   ansible.builtin.template:
     src: compose.yml.j2
     dest: "{{ observability_directory }}/compose.yml"

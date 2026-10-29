@@ -84,7 +84,7 @@ Once bootstrap is complete, run the main playbook to configure and secure the VP
 Keep an existing SSH session open while applying security changes.
 
 ```bash
-ansible-playbook playbooks/site.yml
+ansible-playbook playbooks/site.yml --ask-vault-pass
 ```
 
 The security role configures:
@@ -141,13 +141,13 @@ Ansible is idempotent: running the same playbook again should not make unnecessa
 To preview changes without applying them:
 
 ```bash
-ansible-playbook playbooks/site.yml --check --diff
+ansible-playbook playbooks/site.yml --check --diff --ask-vault-pass
 ```
 
 To apply changes:
 
 ```bash
-ansible-playbook playbooks/site.yml
+ansible-playbook playbooks/site.yml --ask-vault-pass
 ```
 
 **Note:** Docker containers with publicly published ports can bypass normal UFW filtering. Internal services should not be exposed directly to the internet.
@@ -246,3 +246,21 @@ If Grafana fails to start, inspect its logs:
 ```bash
 sudo docker compose -f /opt/observability/compose.yml logs --tail 50 grafana
 ```
+
+### 4. Configure Discord alerting
+
+To send Grafana alerts to Discord, create an Ansible Vault file from the `ansible` directory:
+
+```bash
+ansible-vault create inventory/group_vars/all/discord_vault.yml
+```
+
+If this vault file already exists and you don't know its password, replace it with a new vault file encrypted with a password you know.
+
+Add your Discord webhook URL to the file:
+
+```yaml
+vault_discord_webhook_url: "https://discord.com/api/webhooks/..."
+```
+
+Replace the example URL with your Discord channel's webhook URL. The webhook is stored encrypted in Ansible Vault and used by the Grafana alerting configuration.
