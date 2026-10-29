@@ -9,3 +9,5 @@
       tags: docker
     - role: caddy
       tags: caddy
+    - role: tailscale
+      tags: tailscale

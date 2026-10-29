@@ -151,3 +151,41 @@ ansible-playbook playbooks/site.yml
 ```
 
 **Note:** Docker containers with publicly published ports can bypass normal UFW filtering. Internal services should not be exposed directly to the internet.
+
+## VPN access
+
+Some applications hosted on the VPS are not publicly accessible. They are expected to be accessed through a VPN that is automatically installed by the site playbook.
+There is some manual setup to do to connect your local computer to tailscale:
+
+### Authenticate on the VPS
+
+On the VPS, run
+
+```bash
+sudo tailscale up
+```
+
+Tailscale will provide an authentication URL. Open it in your browser and sign in.
+
+### Authenticate on your local machine
+
+Once tailscale authenticated on the VPS, install tailscale on your local computer. Installation steps vary based on the OS.
+Once installed, run the same command as above on your local computer, and authenticate again.
+
+### Test the connection
+
+On the VPS, run
+
+```bash
+tailscale ip -4
+```
+
+This will display your VPS tailscale IP
+
+From your local machine, try to ping this IP with tailscale:
+
+```bash
+tailscale ping YOUR_VPS_TAILSCALE_IP
+```
+
+If successful, your computer and VPS can communicate over the private network.
