@@ -1,20 +1,27 @@
 - name: Restart Grafana
-  ansible.builtin.command:
-    cmd: docker compose restart grafana
-    chdir: "{{ observability_directory }}"
-  changed_when: true
+  community.docker.docker_compose_v2:
+    project_src: "{{ observability_directory }}"
+    services:
+      - grafana
+    state: restarted
 - name: Recreate Loki
-  ansible.builtin.command:
-    cmd: docker compose up -d --force-recreate loki
-    chdir: "{{ observability_directory }}"
-  changed_when: true
+  community.docker.docker_compose_v2:
+    project_src: "{{ observability_directory }}"
+    services:
+      - loki
+    state: present
+    recreate: always
 - name: Recreate Alloy
-  ansible.builtin.command:
-    cmd: docker compose up -d --force-recreate alloy
-    chdir: "{{ observability_directory }}"
-  changed_when: true
+  community.docker.docker_compose_v2:
+    project_src: "{{ observability_directory }}"
+    services:
+      - alloy
+    state: present
+    recreate: always
 - name: Recreate Tempo
-  ansible.builtin.command:
-    cmd: docker compose up -d --force-recreate tempo
-    chdir: "{{ observability_directory }}"
-  changed_when: true
+  community.docker.docker_compose_v2:
+    project_src: "{{ observability_directory }}"
+    services:
+      - tempo
+    state: present
+    recreate: always

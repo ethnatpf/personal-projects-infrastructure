@@ -36,7 +36,7 @@
     mode: "0644"
 
 - name: Start Caddy
-  ansible.builtin.command:
-    cmd: docker compose up -d --wait
-    chdir: "{{ caddy_directory }}"
-  changed_when: false
+  community.docker.docker_compose_v2:
+    project_src: "{{ caddy_directory }}"
+    state: present
+    wait: true
