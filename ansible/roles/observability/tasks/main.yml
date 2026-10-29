@@ -55,6 +55,18 @@
     dest: "{{ observability_directory }}/grafana-provisioning/datasources/prometheus.yml"
     mode: "0644"
 
+- name: Create dashboard directories
+  ansible.builtin.file:
+    path: "{{ observability_directory }}/grafana-provisioning/dashboards"
+    state: directory
+    mode: "0755"
+
+- name: Copy Grafana dashboards and provisioning configuration
+  ansible.builtin.copy:
+    src: ../files/dashboards
+    dest: "{{ observability_directory }}/grafana-provisioning"
+    mode: "0644"
+
 - name: Generate observability Compose file
   ansible.builtin.template:
     src: compose.yml.j2
