@@ -3,3 +3,5 @@ observability_directory: /opt/observability
 prometheus_retention: 7d
 grafana_tailscale_ip: ""
 grafana_infrastructure_folder_uid: infrastructure
+
+tempo_retention: "72h"

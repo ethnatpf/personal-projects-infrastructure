@@ -69,12 +69,24 @@ services:
             - loki
         networks:
             - monitoring
+    tempo:
+        image: "grafana/tempo:3.1.1"
+        restart: unless-stopped
+        command:
+        - "-config.file=/etc/tempo/tempo.yml"
+        - "-log.level=warn"
+        volumes:
+        - ./tempo:/etc/tempo:ro
+        - tempo_data:/var/tempo
+        networks:
+        - monitoring
 
 volumes:
   prometheus_data:
   grafana_data:
   loki_data:
   alloy_data:
+  tempo_data:
 
 networks:
   monitoring:

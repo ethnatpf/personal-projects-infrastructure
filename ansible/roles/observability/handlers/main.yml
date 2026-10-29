@@ -3,3 +3,18 @@
     cmd: docker compose restart grafana
     chdir: "{{ observability_directory }}"
   changed_when: true
+- name: Recreate Loki
+  ansible.builtin.command:
+    cmd: docker compose up -d --force-recreate loki
+    chdir: "{{ observability_directory }}"
+  changed_when: true
+- name: Recreate Alloy
+  ansible.builtin.command:
+    cmd: docker compose up -d --force-recreate alloy
+    chdir: "{{ observability_directory }}"
+  changed_when: true
+- name: Recreate Tempo
+  ansible.builtin.command:
+    cmd: docker compose up -d --force-recreate tempo
+    chdir: "{{ observability_directory }}"
+  changed_when: true
