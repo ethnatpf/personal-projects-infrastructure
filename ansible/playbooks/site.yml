@@ -11,3 +11,5 @@
       tags: caddy
     - role: tailscale
       tags: tailscale
+    - role: observability
+      tags: observability

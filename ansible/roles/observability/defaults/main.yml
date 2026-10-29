@@ -1,0 +1,7 @@
+observability_directory: /opt/observability
+
+prometheus_image: prom/prometheus:v3.15.1
+grafana_image: grafana/grafana:13.2.5
+
+prometheus_retention: 7d
+grafana_tailscale_ip: ""

@@ -189,3 +189,60 @@ tailscale ping YOUR_VPS_TAILSCALE_IP
 ```
 
 If successful, your computer and VPS can communicate over the private network.
+
+## Grafana
+
+Grafana is deployed automatically by the site playbook as part of the observability stack.
+
+It is only accessible through Tailscale, so your local machine must be connected to the VPN before accessing it.
+
+### 1. Access Grafana
+
+Once connected to Tailscale, open the following URL in your browser:
+
+```text
+http://{VPS_TAILSCALE_IP}:3000
+```
+
+You can retrieve the VPS's Tailscale IP by running:
+
+```bash
+tailscale ip -4
+```
+
+### 2. Get the initial admin password
+
+Grafana's initial administrator credentials are:
+
+- **Username:** `admin`
+- **Password:** Automatically generated during the first Ansible deployment.
+
+To retrieve the password, SSH into your VPS and run:
+
+```bash
+sudo cat /opt/observability/grafana-admin-password
+```
+
+The password is generated only once and stored on the VPS. Subsequent Ansible runs will not regenerate it.
+
+**Note:** The password file is used to initialize Grafana's admin account. Once Grafana has initialized its database, changing this file does not automatically change the account password.
+
+### 3. Troubleshooting login issues
+
+If the generated password doesn't work, reset the Grafana admin password using the stored password:
+
+```bash
+cd /opt/observability
+
+sudo docker compose exec -u 0 grafana \
+  grafana cli admin reset-admin-password \
+  "$(sudo cat /opt/observability/grafana-admin-password)"
+```
+
+This resets the admin password without deleting Grafana's dashboards, users, or stored configuration.
+
+If Grafana fails to start, inspect its logs:
+
+```bash
+sudo docker compose -f /opt/observability/compose.yml logs --tail 50 grafana
+```

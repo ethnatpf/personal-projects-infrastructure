@@ -1,0 +1,68 @@
+- name: Get VPS Tailscale IPv4 address
+  ansible.builtin.command:
+    cmd: tailscale ip -4
+  register: tailscale_ip
+  changed_when: false
+
+- name: Set Grafana Tailscale address
+  ansible.builtin.set_fact:
+    grafana_tailscale_ip: "{{ tailscale_ip.stdout | trim }}"
+
+- name: Create observability directory
+  ansible.builtin.file:
+    path: "{{ observability_directory }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Check for Grafana admin password
+  ansible.builtin.stat:
+    path: "{{ observability_directory }}/grafana-admin-password"
+  register: grafana_password_file
+
+- name: Generate Grafana admin password
+  ansible.builtin.shell:
+    cmd: >
+      umask 077 &&
+      openssl rand -hex 32 > grafana-admin-password
+    chdir: "{{ observability_directory }}"
+  when: not grafana_password_file.stat.exists
+  no_log: true
+
+- name: Set Grafana password file permissions
+  ansible.builtin.file:
+    path: "{{ observability_directory }}/grafana-admin-password"
+    owner: root
+    group: "472"
+    mode: "0640"
+
+- name: Generate Prometheus configuration
+  ansible.builtin.template:
+    src: prometheus.yml.j2
+    dest: "{{ observability_directory }}/prometheus.yml"
+    mode: "0644"
+
+- name: Create Grafana provisioning directory
+  ansible.builtin.file:
+    path: "{{ observability_directory }}/grafana-provisioning/datasources"
+    state: directory
+    mode: "0755"
+
+- name: Generate Grafana data source configuration
+  ansible.builtin.template:
+    src: grafana-datasources.yml.j2
+    dest: "{{ observability_directory }}/grafana-provisioning/datasources/prometheus.yml"
+    mode: "0644"
+
+- name: Generate observability Compose file
+  ansible.builtin.template:
+    src: compose.yml.j2
+    dest: "{{ observability_directory }}/compose.yml"
+    mode: "0644"
+
+- name: Start observability stack
+  ansible.builtin.command:
+    cmd: docker compose up -d --wait
+    chdir: "{{ observability_directory }}"
+  changed_when: false
