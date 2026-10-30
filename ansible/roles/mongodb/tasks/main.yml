@@ -1,0 +1,140 @@
+- name: Create MongoDB directory
+  ansible.builtin.file:
+    path: "{{ mongodb_directory }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install Python virtual environment support
+  ansible.builtin.apt:
+    name: python3-venv
+    state: present
+
+- name: Create MongoDB administration virtual environment
+  ansible.builtin.command:
+    cmd: python3 -m venv /opt/mongodb-venv
+    creates: /opt/mongodb-venv/bin/python
+
+- name: Install PyMongo 4
+  ansible.builtin.pip:
+    name: "pymongo>=4.10,<5"
+    virtualenv: /opt/mongodb-venv
+    state: present
+
+- name: Deploy MongoDB credentials
+  ansible.builtin.template:
+    src: mongodb.env.j2
+    dest: "{{ mongodb_directory }}/mongodb.env"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+
+- name: Generate MongoDB keyfile
+  ansible.builtin.shell:
+    cmd: openssl rand -base64 756 > "{{ mongodb_directory }}/keyfile"
+    creates: "{{ mongodb_directory }}/keyfile"
+  no_log: true
+
+- name: Secure MongoDB keyfile
+  ansible.builtin.file:
+    path: "{{ mongodb_directory }}/keyfile"
+    owner: "999"
+    group: "999"
+    mode: "0400"
+
+- name: Copy MongoDB Compose configuration
+  ansible.builtin.template:
+    src: compose.yml.j2
+    dest: "{{ mongodb_directory }}/compose.yml"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Deploy MongoDB
+  community.docker.docker_compose_v2:
+    project_src: "{{ mongodb_directory }}"
+    state: present
+    wait: true
+    wait_timeout: 120
+
+# Not using mongodb module here as it's not authenticating before initializing the replica set.
+- name: Initialize MongoDB replica set
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/python3
+      - -c
+      - |
+        import sys
+        from pymongo import MongoClient
+        from pymongo.errors import OperationFailure
+
+        client = MongoClient(
+            "127.0.0.1",
+            port=27017,
+            username=sys.argv[1],
+            password=sys.argv[2],
+            authSource="admin",
+            directConnection=True,
+            serverSelectionTimeoutMS=10000,
+        )
+
+        name = sys.argv[3]
+        host = sys.argv[4]
+
+        try:
+            config = client.admin.command("replSetGetConfig")["config"]
+        except OperationFailure as exc:
+            if exc.code != 94:  # NotYetInitialized
+                raise
+            client.admin.command("replSetInitiate", {
+                "_id": name,
+                "members": [{"_id": 0, "host": host}],
+            })
+            print("CHANGED")
+        else:
+            if config["_id"] != name or len(config["members"]) != 1 or config["members"][0]["host"] != host:
+                raise RuntimeError("Existing replica-set configuration differs from expected")
+            print("OK")
+      - "{{ mongodb_root_username }}"
+      - "{{ vault_mongodb_root_password }}"
+      - "{{ mongodb_replica_set }}"
+      - "mongodb:27017"
+  register: mongodb_replica_init
+  changed_when: "'CHANGED' in mongodb_replica_init.stdout"
+  no_log: true
+
+- name: Wait for MongoDB replica set to become healthy
+  community.mongodb.mongodb_status:
+    login_host: 127.0.0.1
+    login_port: 27017
+    login_user: "{{ mongodb_root_username }}"
+    login_password: "{{ vault_mongodb_root_password }}"
+    login_database: admin
+    replica_set: "{{ mongodb_replica_set }}"
+    connection_options:
+      - directConnection=true
+    poll: 12
+    interval: 5
+    validate: minimal
+  vars:
+    ansible_python_interpreter: /opt/mongodb-venv/bin/python
+  no_log: true
+
+- name: Create MongoDB application user
+  community.mongodb.mongodb_user:
+    login_host: 127.0.0.1
+    login_port: 27017
+    login_user: "{{ mongodb_root_username }}"
+    login_password: "{{ vault_mongodb_root_password }}"
+    login_database: admin
+    database: "{{ mongodb_database }}"
+    name: "{{ mongodb_app_username }}"
+    password: "{{ vault_mongodb_immersion_tracker_user_password }}"
+    roles:
+      - readWrite
+    state: present
+  vars:
+    ansible_python_interpreter: /opt/mongodb-venv/bin/python
+  no_log: true

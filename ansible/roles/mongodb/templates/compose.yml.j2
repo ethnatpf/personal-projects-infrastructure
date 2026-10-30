@@ -1,0 +1,36 @@
+services:
+  mongodb:
+    image: mongo:8.3.13-noble
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:27017:27017"
+    command:
+      - mongod
+      - --replSet
+      - "{{ mongodb_replica_set }}"
+      - --bind_ip_all
+      - --keyFile
+      - /etc/mongodb-keyfile/keyfile
+    env_file:
+      - ./mongodb.env
+    volumes:
+      - mongodb_data:/data/db
+      - ./keyfile:/etc/mongodb-keyfile/keyfile:ro
+    networks:
+      - database
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - >-
+        mongosh --quiet --eval 'db.adminCommand({ ping: 1 }).ok' | grep -q 1
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  mongodb_data:
+
+networks:
+  database:
+    name: mongodb_internal

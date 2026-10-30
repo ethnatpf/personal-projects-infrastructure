@@ -1,0 +1,5 @@
+mongodb_directory: /opt/mongodb
+mongodb_root_username: admin
+mongodb_replica_set: rs0
+mongodb_database: immersion_tracker
+mongodb_app_username: immersion_app

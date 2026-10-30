@@ -77,7 +77,25 @@ The output should be `root`, because `-b` tells Ansible to execute the command u
 
 Once bootstrap is complete, run the main playbook to configure and secure the VPS.
 
-### 1. Apply the configuration
+### 1. Configure Ansible Vault
+
+From the `ansible` directory, create the vault file used for secrets:
+
+```bash
+ansible-vault create inventory/group_vars/all/vault.yml
+```
+
+Add the required passwords and Discord webhook URL to the file:
+
+```yaml
+vault_mongodb_root_password: "your-mongodb-root-password"
+vault_mongodb_immersion_tracker_user_password: "your-immersion-tracker-database-password"
+vault_discord_webhook_url: "https://discord.com/api/webhooks/..."
+```
+
+Replace the example values with your own secrets and Discord channel webhook URL. Keep the vault password available; Ansible will prompt for it when you apply the configuration.
+
+### 2. Apply the configuration
 
 **Warning:** SSH hardening disables password authentication and direct root SSH login. Make sure SSH key authentication works before continuing.
 
@@ -95,7 +113,7 @@ The security role configures:
 
 The SSH hardening configuration is stored in `/etc/ssh/sshd_config.d/00-hardening.conf`. Its filename ensures it takes precedence over later configuration snippets, such as those created by cloud-init.
 
-### 2. Verify the configuration
+### 3. Verify the configuration
 
 On the VPS, check the firewall:
 
@@ -227,7 +245,7 @@ The password is generated only once and stored on the VPS. Subsequent Ansible ru
 
 **Note:** The password file is used to initialize Grafana's admin account. Once Grafana has initialized its database, changing this file does not automatically change the account password.
 
-### 3. Troubleshooting login issues
+### 4. Troubleshooting login issues
 
 If the generated password doesn't work, reset the Grafana admin password using the stored password:
 
@@ -247,20 +265,3 @@ If Grafana fails to start, inspect its logs:
 sudo docker compose -f /opt/observability/compose.yml logs --tail 50 grafana
 ```
 
-### 4. Configure Discord alerting
-
-To send Grafana alerts to Discord, create an Ansible Vault file from the `ansible` directory:
-
-```bash
-ansible-vault create inventory/group_vars/all/discord_vault.yml
-```
-
-If this vault file already exists and you don't know its password, replace it with a new vault file encrypted with a password you know.
-
-Add your Discord webhook URL to the file:
-
-```yaml
-vault_discord_webhook_url: "https://discord.com/api/webhooks/..."
-```
-
-Replace the example URL with your Discord channel's webhook URL. The webhook is stored encrypted in Ansible Vault and used by the Grafana alerting configuration.

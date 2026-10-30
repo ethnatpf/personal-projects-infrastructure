@@ -13,3 +13,5 @@
       tags: tailscale
     - role: observability
       tags: observability
+    - role: mongodb
+      tags: mongodb
