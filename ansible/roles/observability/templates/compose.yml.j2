@@ -12,6 +12,7 @@ services:
             - prometheus_data:/prometheus
         networks:
             - monitoring
+            - observability_shared
 
     grafana:
         image: grafana/grafana:13.2.5
@@ -91,3 +92,6 @@ volumes:
 networks:
   monitoring:
     driver: bridge
+  observability_shared:
+    name: observability_shared
+    external: true

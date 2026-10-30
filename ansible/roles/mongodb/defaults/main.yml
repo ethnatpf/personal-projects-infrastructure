@@ -3,3 +3,7 @@ mongodb_root_username: admin
 mongodb_replica_set: rs0
 mongodb_database: immersion_tracker
 mongodb_app_username: immersion_app
+
+mongodb_exporter_image: "percona/mongodb_exporter:0.54"
+mongodb_exporter_port: 9216
+mongodb_exporter_username: mongodb_exporter

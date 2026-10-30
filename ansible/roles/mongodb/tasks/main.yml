@@ -52,7 +52,16 @@
     group: root
     mode: "0644"
 
-- name: Deploy MongoDB
+- name: Deploy MongoDB exporter environment file
+  ansible.builtin.template:
+    src: exporter.env.j2
+    dest: "{{ mongodb_directory }}/exporter.env"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+
+- name: Deploy MongoDB and the exporter
   community.docker.docker_compose_v2:
     project_src: "{{ mongodb_directory }}"
     state: present
@@ -134,6 +143,26 @@
     password: "{{ vault_mongodb_immersion_tracker_user_password }}"
     roles:
       - readWrite
+    state: present
+  vars:
+    ansible_python_interpreter: /opt/mongodb-venv/bin/python
+  no_log: true
+
+- name: Create MongoDB exporter user
+  community.mongodb.mongodb_user:
+    login_host: 127.0.0.1
+    login_port: 27017
+    login_user: "{{ mongodb_root_username }}"
+    login_password: "{{ vault_mongodb_root_password }}"
+    login_database: admin
+    database: admin
+    name: "{{ mongodb_exporter_username }}"
+    password: "{{ vault_mongodb_exporter_password }}"
+    roles:
+      - db: admin
+        role: clusterMonitor
+      - db: local
+        role: read
     state: present
   vars:
     ansible_python_interpreter: /opt/mongodb-venv/bin/python

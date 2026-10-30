@@ -90,6 +90,7 @@ Add the required passwords and Discord webhook URL to the file:
 ```yaml
 vault_mongodb_root_password: "your-mongodb-root-password"
 vault_mongodb_immersion_tracker_user_password: "your-immersion-tracker-database-password"
+vault_mongodb_exporter_password: "your-mongodb-exporter-password"
 vault_discord_webhook_url: "https://discord.com/api/webhooks/..."
 ```
 
@@ -264,4 +265,3 @@ If Grafana fails to start, inspect its logs:
 ```bash
 sudo docker compose -f /opt/observability/compose.yml logs --tail 50 grafana
 ```
-

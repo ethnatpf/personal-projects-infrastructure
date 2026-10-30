@@ -8,6 +8,11 @@
   ansible.builtin.set_fact:
     grafana_tailscale_ip: "{{ tailscale_ip.stdout | trim }}"
 
+- name: Create shared observability Docker network
+  community.docker.docker_network:
+    name: observability_shared
+    state: present
+
 - name: Create observability directory
   ansible.builtin.file:
     path: "{{ observability_directory }}"

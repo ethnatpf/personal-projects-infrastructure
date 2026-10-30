@@ -28,9 +28,24 @@ services:
       retries: 3
       start_period: 40s
 
+  mongodb_exporter:
+    image: percona/mongodb_exporter:0.54
+    restart: unless-stopped
+    command:
+        - --collect-all
+        - --collector.pbm
+        - --web.listen-address=:9216
+    env_file:
+        - ./exporter.env
+    networks:
+        - database
+        - observability_shared
 volumes:
   mongodb_data:
 
 networks:
   database:
     name: mongodb_internal
+  observability_shared:
+    name: observability_shared
+    external: true
