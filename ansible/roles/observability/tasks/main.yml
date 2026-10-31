@@ -48,6 +48,14 @@
     dest: "{{ observability_directory }}/prometheus.yml"
     mode: "0644"
 
+- name: Create Node Exporter textfile directory
+  ansible.builtin.file:
+    path: /var/lib/node_exporter/textfile
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
 - name: Create Grafana provisioning directories
   ansible.builtin.file:
     path: "{{ observability_directory }}/grafana-provisioning/{{ item }}"
@@ -96,7 +104,8 @@
     mode: "0644"
   loop:
     - ../files/alerting/contact-points.yml
-    - disk-usage.yml.j2
+    - disk-usage-alert.yml.j2
+    - mongodb-alerts.yml.j2
     - ../files/alerting/notification-policies.yml
   notify: Restart Grafana
 

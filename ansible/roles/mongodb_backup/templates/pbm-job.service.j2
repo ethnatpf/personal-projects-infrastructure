@@ -6,5 +6,9 @@ After=docker.service
 [Service]
 Type=oneshot
 WorkingDirectory={{ mongodb_backup_directory }}
+
 ExecStart=/usr/bin/flock -w 3600 /run/lock/pbm-operations.lock /usr/bin/docker compose exec -T pbm pbm {{ item.value.command }}
+
+ExecStartPost=/bin/sh -c 'printf "pbm_job_last_success_timestamp_seconds{job=\\\"{{ item.key }}\\\"} %%s\n" "$(/usr/bin/date +%%s)" > /var/lib/node_exporter/textfile/pbm-{{ item.key }}.prom.tmp && /usr/bin/mv /var/lib/node_exporter/textfile/pbm-{{ item.key }}.prom.tmp /var/lib/node_exporter/textfile/pbm-{{ item.key }}.prom'
+
 TimeoutStartSec=infinity

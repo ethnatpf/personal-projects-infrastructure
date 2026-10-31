@@ -1,0 +1,219 @@
+apiVersion: 1
+groups:
+    - orgId: 1
+      name: 'MongoDB '
+      folder: "{{ grafana_infrastructure_folder_uid }}"
+      interval: 5m
+      rules:
+        - uid: dg2w65ggbkhdsa
+          title: Hourly mongodb backup is running
+          condition: C
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: prometheus
+              model:
+                editorMode: code
+                expr: time() - pbm_job_last_success_timestamp_seconds{exported_job="hourly"}
+                instant: true
+                intervalMs: 1000
+                legendFormat: __auto
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: C
+              queryType: expression
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 5400
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params:
+                            - C
+                      reducer:
+                        params: []
+                        type: last
+                      type: query
+                datasource:
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                intervalMs: 1000
+                maxDataPoints: 43200
+                refId: C
+                type: threshold
+          noDataState: NoData
+          execErrState: Error
+          for: 5m
+          annotations:
+            description: The hourly backup for mongodb did not run successfully for more than 90 minutes.
+            summary: Hourly backup for mongodb is unhealthy
+          isPaused: false
+          notification_settings:
+            receiver: Discord
+        - uid: cg2w6dw06uvb4b
+          title: Daily mongodb backup is running
+          condition: C
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: prometheus
+              model:
+                editorMode: code
+                expr: time() - pbm_job_last_success_timestamp_seconds{exported_job="daily"}
+                instant: true
+                intervalMs: 1000
+                legendFormat: __auto
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: C
+              queryType: expression
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 93600
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params:
+                            - C
+                      reducer:
+                        params: []
+                        type: last
+                      type: query
+                datasource:
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                intervalMs: 1000
+                maxDataPoints: 43200
+                refId: C
+                type: threshold
+          noDataState: NoData
+          execErrState: Error
+          for: 5m
+          annotations:
+            description: The daily backup for mongodb did not run successfully for more than 26 hours.
+            summary: Daily backup for mongodb is unhealthy
+          isPaused: false
+          notification_settings:
+            receiver: Discord
+        - uid: eg2w6lmrswyrke
+          title: Cleanup hourly mongodb backup is running
+          condition: C
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: prometheus
+              model:
+                editorMode: code
+                expr: time() - pbm_job_last_success_timestamp_seconds{exported_job="cleanup_hourly"}
+                instant: true
+                intervalMs: 1000
+                legendFormat: __auto
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: C
+              queryType: expression
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 93600
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params:
+                            - C
+                      reducer:
+                        params: []
+                        type: last
+                      type: query
+                datasource:
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                intervalMs: 1000
+                maxDataPoints: 43200
+                refId: C
+                type: threshold
+          noDataState: NoData
+          execErrState: Error
+          for: 5m
+          annotations:
+            description: The cleanup job for hourly mongodb backup did not run successfully for more than 26 hours.
+            summary: Cleanup job for hourly mongodb backup is unhealthy
+          isPaused: false
+          notification_settings:
+            receiver: Discord
+        - uid: dg2w6s8d9q03kb
+          title: Cleanup daily mongodb backup is running
+          condition: C
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: prometheus
+              model:
+                editorMode: code
+                expr: time() - pbm_job_last_success_timestamp_seconds{exported_job="cleanup_daily"}
+                instant: true
+                intervalMs: 1000
+                legendFormat: __auto
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: C
+              queryType: expression
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 93600
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params:
+                            - C
+                      reducer:
+                        params: []
+                        type: last
+                      type: query
+                datasource:
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                intervalMs: 1000
+                maxDataPoints: 43200
+                refId: C
+                type: threshold
+          noDataState: NoData
+          execErrState: Error
+          for: 5m
+          annotations:
+            description: The cleanup job for daily mongodb backup did not run successfully for more than 26 hours.
+            summary: Cleanup job for daily mongodb backup is unhealthy
+          isPaused: false
+          notification_settings:
+            receiver: Discord
