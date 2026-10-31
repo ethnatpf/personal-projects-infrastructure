@@ -1,0 +1,16 @@
+services:
+  pbm:
+    image: percona/percona-backup-mongodb:2.17.0
+    restart: unless-stopped
+    env_file:
+      - ./pbm.env
+    volumes:
+      - ./storage-hourly.yml:/etc/pbm/storage-hourly.yml:ro
+      - ./storage-daily.yml:/etc/pbm/storage-daily.yml:ro
+    networks:
+      - database
+
+networks:
+  database:
+    external: true
+    name: mongodb_internal

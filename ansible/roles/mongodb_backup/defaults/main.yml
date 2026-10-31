@@ -1,0 +1,29 @@
+mongodb_backup_directory: /opt/mongodb-backup
+mongodb_backup_username: pbmuser
+
+mongodb_backup_hourly:
+  bucket: "immersion-tracker-mongodb-hourly-backups"
+  region: "ca-east-1"
+  endpoint: "https://s3.ca-east-1.idrivee2.com"
+
+mongodb_backup_daily:
+  bucket: "immersion-tracker-mongodb-daily-backups"
+  region: "us-east-1"
+  endpoint: "https://s3.us-east-1.idrivee2.com"
+
+mongodb_backup_jobs:
+  hourly:
+    calendar: "*-*-* *:10:00"
+    command: "backup --type=logical --profile=main --wait"
+
+  daily:
+    calendar: "*-*-* 02:30:00"
+    command: "backup --type=logical --profile=daily --wait"
+
+  cleanup_hourly:
+    calendar: "*-*-* 04:30:00"
+    command: "cleanup --older-than=7d --profile=main --yes --wait"
+
+  cleanup_daily:
+    calendar: "*-*-* 04:45:00"
+    command: "cleanup --older-than=90d --profile=daily --yes --wait"

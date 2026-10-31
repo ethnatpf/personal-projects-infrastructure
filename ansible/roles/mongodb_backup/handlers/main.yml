@@ -1,0 +1,35 @@
+- name: Configure PBM main storage
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - exec
+      - -T
+      - --user
+      - "0"
+      - pbm
+      - pbm
+      - config
+      - --file
+      - /etc/pbm/storage-hourly.yml
+    chdir: "{{ mongodb_backup_directory }}"
+  no_log: true
+
+- name: Configure PBM daily storage
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - exec
+      - -T
+      - --user
+      - "0"
+      - pbm
+      - pbm
+      - profile
+      - add
+      - --wait
+      - daily
+      - /etc/pbm/storage-daily.yml
+    chdir: "{{ mongodb_backup_directory }}"
+  no_log: true

@@ -1,0 +1,11 @@
+storage:
+  type: s3
+  s3:
+    region: {{ backup_storage.region | to_json }}
+    bucket: {{ backup_storage.bucket | to_json }}
+    endpointUrl: {{ backup_storage.endpoint | to_json }}
+    prefix: "pbm"
+    forcePathStyle: true
+    credentials:
+      access-key-id: {{ backup_access_key | to_json }}
+      secret-access-key: {{ backup_secret_key | to_json }}

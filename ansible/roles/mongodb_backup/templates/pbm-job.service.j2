@@ -1,0 +1,10 @@
+[Unit]
+Description=PBM {{ item.key }} job
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory={{ mongodb_backup_directory }}
+ExecStart=/usr/bin/flock -w 3600 /run/lock/pbm-operations.lock /usr/bin/docker compose exec -T pbm pbm {{ item.value.command }}
+TimeoutStartSec=infinity

@@ -1,0 +1,10 @@
+[Unit]
+Description=Schedule PBM {{ item.key }} job
+
+[Timer]
+OnCalendar={{ item.value.calendar }}
+Persistent=true
+Unit=pbm-{{ item.key }}.service
+
+[Install]
+WantedBy=timers.target

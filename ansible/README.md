@@ -89,9 +89,19 @@ Add the required passwords and Discord webhook URL to the file:
 
 ```yaml
 vault_mongodb_root_password: "your-mongodb-root-password"
-vault_mongodb_immersion_tracker_user_password: "your-immersion-tracker-database-password"
-vault_mongodb_exporter_password: "your-mongodb-exporter-password"
+vault_mongodb_immersion_tracker_user_password: "your-immersion-tracker-database-user-password"
+vault_mongodb_exporter_password: "your-mongodb-exporter-user-password"
+vault_mongodb_backup_password: "your-mongodb-backup-user-password"
+
 vault_discord_webhook_url: "https://discord.com/api/webhooks/..."
+
+# Hourly backups bucket S3 creds
+vault_mongodb_backup_hourly_access_key: "..."
+vault_mongodb_backup_hourly_secret_key: "..."
+
+# Daily backups bucket S3 creds
+vault_mongodb_backup_daily_access_key: "..."
+vault_mongodb_backup_daily_secret_key: "..."
 ```
 
 Replace the example values with your own secrets and Discord channel webhook URL. Keep the vault password available; Ansible will prompt for it when you apply the configuration.

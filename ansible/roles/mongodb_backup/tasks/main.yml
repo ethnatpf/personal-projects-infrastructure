@@ -1,0 +1,150 @@
+- name: Verify MongoDB network exists
+  community.docker.docker_network_info:
+    name: mongodb_internal
+  register: mongodb_network
+
+- name: Require MongoDB network
+  ansible.builtin.assert:
+    that:
+      - mongodb_network.exists
+    fail_msg: "MongoDB must be deployed before mongodb_backup."
+
+- name: Configure MongoDB backup permissions
+  block:
+    - name: Create PBM custom role
+      community.mongodb.mongodb_role:
+        login_host: 127.0.0.1
+        login_port: 27017
+        login_user: "{{ mongodb_root_username }}"
+        login_password: "{{ vault_mongodb_root_password }}"
+        login_database: admin
+        database: admin
+        name: pbmAnyAction
+        privileges:
+          - resource:
+              anyResource: true
+            actions:
+              - anyAction
+        roles: []
+        state: present
+      no_log: true
+
+    - name: Create PBM user
+      community.mongodb.mongodb_user:
+        login_host: 127.0.0.1
+        login_port: 27017
+        login_user: "{{ mongodb_root_username }}"
+        login_password: "{{ vault_mongodb_root_password }}"
+        login_database: admin
+        database: admin
+        name: "{{ mongodb_backup_username }}"
+        password: "{{ vault_mongodb_backup_password }}"
+        roles:
+          - db: admin
+            role: readWrite
+          - db: admin
+            role: backup
+          - db: admin
+            role: clusterMonitor
+          - db: admin
+            role: restore
+          - db: admin
+            role: pbmAnyAction
+        state: present
+      no_log: true
+
+  vars:
+    ansible_python_interpreter: /opt/mongodb-venv/bin/python
+
+- name: Create PBM directory
+  ansible.builtin.file:
+    path: "{{ mongodb_backup_directory }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Deploy PBM environment file
+  ansible.builtin.template:
+    src: pbm.env.j2
+    dest: "{{ mongodb_backup_directory }}/pbm.env"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+
+- name: Deploy hourly PBM storage configuration
+  ansible.builtin.template:
+    src: storage.yml.j2
+    dest: "{{ mongodb_backup_directory }}/storage-hourly.yml"
+    owner: root
+    group: root
+    mode: "0600"
+  vars:
+    backup_storage: "{{ mongodb_backup_hourly }}"
+    backup_access_key: "{{ vault_mongodb_backup_hourly_access_key }}"
+    backup_secret_key: "{{ vault_mongodb_backup_hourly_secret_key }}"
+  notify: Configure PBM main storage
+  no_log: true
+
+- name: Deploy daily PBM storage configuration
+  ansible.builtin.template:
+    src: storage.yml.j2
+    dest: "{{ mongodb_backup_directory }}/storage-daily.yml"
+    owner: root
+    group: root
+    mode: "0600"
+  vars:
+    backup_storage: "{{ mongodb_backup_daily }}"
+    backup_access_key: "{{ vault_mongodb_backup_daily_access_key }}"
+    backup_secret_key: "{{ vault_mongodb_backup_daily_secret_key }}"
+  notify: Configure PBM daily storage
+  no_log: true
+
+- name: Deploy PBM Compose configuration
+  ansible.builtin.template:
+    src: compose.yml.j2
+    dest: "{{ mongodb_backup_directory }}/compose.yml"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Start PBM agent
+  community.docker.docker_compose_v2:
+    project_src: "{{ mongodb_backup_directory }}"
+    state: present
+
+- name: Apply pending PBM configuration
+  ansible.builtin.meta: flush_handlers
+
+- name: Deploy PBM systemd services
+  ansible.builtin.template:
+    src: pbm-job.service.j2
+    dest: "/etc/systemd/system/pbm-{{ item.key }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ mongodb_backup_jobs | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+
+- name: Deploy PBM systemd timers
+  ansible.builtin.template:
+    src: pbm-job.timer.j2
+    dest: "/etc/systemd/system/pbm-{{ item.key }}.timer"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ mongodb_backup_jobs | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+
+- name: Enable and start PBM timers
+  ansible.builtin.systemd_service:
+    name: "pbm-{{ item.key }}.timer"
+    enabled: true
+    state: started
+    daemon_reload: true
+  loop: "{{ mongodb_backup_jobs | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"

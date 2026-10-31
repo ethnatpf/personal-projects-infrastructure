@@ -15,3 +15,5 @@
       tags: observability
     - role: mongodb
       tags: mongodb
+    - role: mongodb_backup
+      tags: mongodb_backup
