@@ -101,6 +101,20 @@
   notify: Configure PBM daily storage
   no_log: true
 
+- name: Deploy pre-restore PBM storage configuration
+  ansible.builtin.template:
+    src: storage.yml.j2
+    dest: "{{ mongodb_backup_directory }}/storage-pre-restore.yml"
+    owner: root
+    group: root
+    mode: "0600"
+  vars:
+    backup_storage: "{{ mongodb_backup_pre_restore }}"
+    backup_access_key: "{{ vault_mongodb_backup_pre_restore_access_key }}"
+    backup_secret_key: "{{ vault_mongodb_backup_pre_restore_secret_key }}"
+  notify: Configure PBM pre-restore storage
+  no_log: true
+
 - name: Deploy PBM Compose configuration
   ansible.builtin.template:
     src: compose.yml.j2

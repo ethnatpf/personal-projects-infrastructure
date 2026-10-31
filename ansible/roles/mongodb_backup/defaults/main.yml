@@ -11,6 +11,11 @@ mongodb_backup_daily:
   region: "us-east-1"
   endpoint: "https://s3.us-east-1.idrivee2.com"
 
+mongodb_backup_pre_restore:
+  bucket: "immersion-tracker-mongodb-prerestore-backups"
+  region: "ca-east-1"
+  endpoint: "https://s3.ca-east-1.idrivee2.com"
+
 mongodb_backup_jobs:
   hourly:
     calendar: "*-*-* *:10:00"

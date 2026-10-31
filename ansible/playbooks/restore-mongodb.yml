@@ -1,0 +1,358 @@
+# TODO: Before deploying the immersion-tracker backend to production,
+# update this playbook to stop the backend Docker Compose service
+# before starting the safety backup or restore.
+#
+# This prevents application writes during recovery.
+# Keep MongoDB and the PBM agent running.
+#
+# After a successful restore and database validation, restart the
+# backend service. If restoration fails, leave it stopped to avoid
+# application writes against a partially restored database.
+
+- name: Restore MongoDB
+  hosts: all
+  become: true
+  gather_facts: false
+
+  vars_files:
+    - ../roles/mongodb/defaults/main.yml
+
+  vars:
+    # Main is the profile for hourly
+    restore_profile: main
+    restore_backup_name: latest
+    restore_directory: /opt/mongodb-backup
+
+    # Only skip safety backups when there are no non-empty user databases.
+    restore_skip_safety_backup: false
+    restore_safety_profile: pre_restore
+
+    restore_timer_units:
+      - pbm-hourly.timer
+      - pbm-daily.timer
+      - pbm-cleanup_hourly.timer
+      - pbm-cleanup_daily.timer
+
+  tasks:
+    - name: Check databases before allowing the safety backup to be skipped
+      ansible.builtin.command:
+        argv:
+          - docker
+          - compose
+          - exec
+          - -T
+          - mongodb
+          - mongosh
+          - --quiet
+          - --username
+          - "{{ mongodb_root_username }}"
+          - --password
+          - "{{ vault_mongodb_root_password }}"
+          - --authenticationDatabase
+          - admin
+          - --eval
+          - >-
+            print(JSON.stringify(
+              db.adminCommand({listDatabases: 1, nameOnly: false}).databases
+              .filter(database =>
+                !['admin', 'local', 'config'].includes(database.name)
+                && database.empty !== true
+              )
+              .map(database => database.name)
+            ));
+        chdir: "{{ mongodb_directory }}"
+      register: restore_nonempty_databases
+      changed_when: false
+      no_log: true
+      when: restore_skip_safety_backup | bool
+
+    - name: Require a clean destination when skipping the safety backup
+      ansible.builtin.assert:
+        that:
+          - restore_nonempty_databases.stdout | from_json | length == 0
+        fail_msg: >-
+          Cannot skip the safety backup because these non-empty user databases
+          exist: {{ restore_nonempty_databases.stdout | from_json | join(', ') }}.
+      when: restore_skip_safety_backup | bool
+
+    - name: Validate restore profile
+      ansible.builtin.assert:
+        that:
+          - restore_profile in ['main', 'daily', 'pre_restore']
+        fail_msg: "Restore profile must be main or daily."
+
+    - name: Check PBM status
+      ansible.builtin.command:
+        argv:
+          - docker
+          - compose
+          - exec
+          - -T
+          - pbm
+          - pbm
+          - status
+          - --profile={{ restore_profile }}
+        chdir: "{{ restore_directory }}"
+      register: pbm_status
+      changed_when: false
+
+    - name: Synchronize default PBM storage
+      ansible.builtin.command:
+        argv:
+          - docker
+          - compose
+          - exec
+          - -T
+          - pbm
+          - pbm
+          - config
+          - --force-resync
+        chdir: "{{ restore_directory }}"
+      when: restore_profile == 'main'
+      changed_when: true
+
+    - name: Synchronize named PBM storage profile
+      ansible.builtin.command:
+        argv:
+          - docker
+          - compose
+          - exec
+          - -T
+          - pbm
+          - pbm
+          - profile
+          - sync
+          - "{{ restore_profile }}"
+          - --wait
+        chdir: "{{ restore_directory }}"
+      when: restore_profile != 'main'
+      changed_when: true
+
+    - name: Retrieve available backups
+      ansible.builtin.command:
+        argv:
+          - docker
+          - compose
+          - exec
+          - -T
+          - pbm
+          - pbm
+          - list
+          - --out=json
+        chdir: "{{ restore_directory }}"
+      register: pbm_backups
+      changed_when: false
+      # Retry automatically as the backup command will return "Storage resync is running. Backups list will be available after sync finishes."
+      # until the sync task is finished. Retries are expected here.
+      until: >-
+        pbm_backups.rc == 0
+        and
+        'snapshots' in (pbm_backups.stdout | from_json)
+      retries: 60
+      delay: 5
+
+    - name: Parse PBM backup catalog
+      ansible.builtin.set_fact:
+        pbm_catalog: "{{ pbm_backups.stdout | from_json }}"
+
+    - name: Initialize available backups
+      ansible.builtin.set_fact:
+        available_backups: []
+
+    - name: Collect completed backups for selected profile
+      ansible.builtin.set_fact:
+        available_backups: "{{ available_backups + [item] }}"
+      loop: "{{ pbm_catalog['snapshots'] }}"
+      loop_control:
+        label: "{{ item.name }}"
+      when:
+        - item.status == 'done'
+        - item.type == 'logical'
+        - (item.profile | default('main')) == restore_profile
+
+    - name: Sort available backups newest first
+      ansible.builtin.set_fact:
+        available_backups: "{{ available_backups | sort(attribute='name', reverse=true) | list }}"
+
+    - name: Require an available backup
+      ansible.builtin.assert:
+        that:
+          - available_backups | length > 0
+        fail_msg: "No completed logical backups found."
+
+    - name: Resolve requested backup
+      ansible.builtin.set_fact:
+        selected_backup: >-
+          {{
+            available_backups[0].name
+            if restore_backup_name == 'latest'
+            else restore_backup_name
+          }}
+
+    - name: Validate selected backup
+      ansible.builtin.assert:
+        that:
+          - selected_backup in (available_backups | map(attribute='name') | list)
+        fail_msg: "Requested backup does not exist in the selected profile."
+
+    - name: Check for running PBM jobs
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - is-active
+          - --quiet
+          - "{{ item | regex_replace('\\.timer$', '.service') }}"
+      loop: "{{ restore_timer_units }}"
+      register: running_pbm_jobs
+      changed_when: false
+      failed_when: false
+
+    - name: Require scheduled PBM jobs to be stopped
+      ansible.builtin.assert:
+        that:
+          - running_pbm_jobs.results | selectattr('rc', 'equalto', 0) | list | length == 0
+        fail_msg: "A PBM scheduled job is still running. Wait for it to finish."
+
+    - name: Restore MongoDB
+      block:
+        - name: Stop PBM timers during restore
+          ansible.builtin.systemd_service:
+            name: "{{ item }}"
+            state: stopped
+          loop: "{{ restore_timer_units }}"
+
+        - name: Create and verify pre-restore safety backup
+          when: not (restore_skip_safety_backup | bool)
+          block:
+            - name: List existing safety backups
+              ansible.builtin.command:
+                argv:
+                  - docker
+                  - compose
+                  - exec
+                  - -T
+                  - pbm
+                  - pbm
+                  - list
+                  - "--profile={{ restore_safety_profile }}"
+                  - --out=json
+                chdir: "{{ restore_directory }}"
+              register: safety_before
+              changed_when: false
+
+            - name: Create fresh safety backup
+              ansible.builtin.command:
+                argv:
+                  - docker
+                  - compose
+                  - exec
+                  - -T
+                  - pbm
+                  - pbm
+                  - backup
+                  - --type=logical
+                  - "--profile={{ restore_safety_profile }}"
+                  - --wait
+                  - --wait-time=2h
+                chdir: "{{ restore_directory }}"
+              register: safety_backup_result
+              changed_when: true
+
+            - name: List safety backups after completion
+              ansible.builtin.command:
+                argv:
+                  - docker
+                  - compose
+                  - exec
+                  - -T
+                  - pbm
+                  - pbm
+                  - list
+                  - "--profile={{ restore_safety_profile }}"
+                  - --out=json
+                chdir: "{{ restore_directory }}"
+              register: safety_after
+              changed_when: false
+
+            - name: Identify newly completed safety backups
+              ansible.builtin.set_fact:
+                new_safety_backups: >-
+                  {{
+                    (safety_after.stdout | from_json)['snapshots']
+                    | selectattr('status', 'equalto', 'done')
+                    | selectattr('type', 'equalto', 'logical')
+                    | map(attribute='name')
+                    | difference(
+                        (safety_before.stdout | from_json)['snapshots']
+                        | map(attribute='name')
+                        | list
+                      )
+                    | list
+                  }}
+
+            - name: Require a completed new safety backup
+              ansible.builtin.assert:
+                that:
+                  - new_safety_backups | length == 1
+                fail_msg: "Safety backup was not verified. Restore aborted."
+
+            - name: Show safety backup name
+              ansible.builtin.debug:
+                msg: "Safety backup created: {{ new_safety_backups[0] }}"
+
+        - name: Confirm destructive MongoDB restore
+          ansible.builtin.pause:
+            prompt: >-
+              About to restore backup {{ selected_backup }}
+              from profile {{ restore_profile }}.
+              This may overwrite existing MongoDB data.
+              Type RESTORE to continue
+          register: restore_confirmation
+
+        - name: Require restore confirmation
+          ansible.builtin.assert:
+            that:
+              - restore_confirmation.user_input == 'RESTORE'
+            fail_msg: "Restore canceled."
+
+        - name: Restore MongoDB from selected backup
+          ansible.builtin.command:
+            argv:
+              - docker
+              - compose
+              - exec
+              - -T
+              - pbm
+              - pbm
+              - restore
+              - "{{ selected_backup }}"
+              - --yes
+              - --wait
+              - --wait-time=2h
+            chdir: "{{ restore_directory }}"
+          register: pbm_restore_result
+          changed_when: true
+
+        - name: Verify MongoDB is reachable after restore
+          community.mongodb.mongodb_status:
+            login_host: 127.0.0.1
+            login_port: 27017
+            login_user: "{{ mongodb_root_username }}"
+            login_password: "{{ vault_mongodb_root_password }}"
+            login_database: admin
+            replica_set: rs0
+          vars:
+            ansible_python_interpreter: /opt/mongodb-venv/bin/python
+          register: restored_mongodb_status
+          no_log: true
+
+        - name: Display MongoDB status
+          ansible.builtin.debug:
+            var: restored_mongodb_status
+
+      always:
+        - name: Resume PBM timers
+          ansible.builtin.systemd_service:
+            name: "{{ item }}"
+            state: started
+          loop: "{{ restore_timer_units }}"

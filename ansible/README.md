@@ -113,7 +113,7 @@ Replace the example values with your own secrets and Discord channel webhook URL
 Keep an existing SSH session open while applying security changes.
 
 ```bash
-ansible-playbook playbooks/site.yml --ask-vault-pass
+ansible-playbook playbooks/configure-vps.yml --ask-vault-pass
 ```
 
 The security role configures:
@@ -170,13 +170,13 @@ Ansible is idempotent: running the same playbook again should not make unnecessa
 To preview changes without applying them:
 
 ```bash
-ansible-playbook playbooks/site.yml --check --diff --ask-vault-pass
+ansible-playbook playbooks/configure-vps.yml --check --diff --ask-vault-pass
 ```
 
 To apply changes:
 
 ```bash
-ansible-playbook playbooks/site.yml --ask-vault-pass
+ansible-playbook playbooks/configure-vps.yml --ask-vault-pass
 ```
 
 **Note:** Docker containers with publicly published ports can bypass normal UFW filtering. Internal services should not be exposed directly to the internet.

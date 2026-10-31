@@ -33,3 +33,22 @@
       - /etc/pbm/storage-daily.yml
     chdir: "{{ mongodb_backup_directory }}"
   no_log: true
+
+- name: Configure PBM pre-restore storage
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - exec
+      - -T
+      - --user
+      - "0"
+      - pbm
+      - pbm
+      - profile
+      - add
+      - --wait
+      - pre_restore
+      - /etc/pbm/storage-pre-restore.yml
+    chdir: "{{ mongodb_backup_directory }}"
+  no_log: true
