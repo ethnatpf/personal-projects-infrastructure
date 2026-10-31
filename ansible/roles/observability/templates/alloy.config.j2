@@ -19,6 +19,29 @@ loki.source.docker "containers" {
   forward_to    = [loki.write.local.receiver]
 }
 
+loki.relabel "pbm_journal" {
+  forward_to = []
+
+  rule {
+    source_labels = ["__journal__systemd_unit"]
+    regex         = "pbm-(hourly|daily|cleanup_hourly|cleanup_daily)\\.service"
+    action        = "keep"
+  }
+
+  rule {
+    source_labels = ["__journal__systemd_unit"]
+    target_label  = "unit"
+  }
+}
+
+loki.source.journal "pbm_jobs" {
+  path          = "/var/log/journal"
+  max_age       = "24h"
+  labels        = { service = "mongodb-backup-systemd" }
+  relabel_rules = loki.relabel.pbm_journal.rules
+  forward_to    = [loki.write.local.receiver]
+}
+
 loki.write "local" {
   endpoint {
     url = "http://loki:3100/loki/api/v1/push"
