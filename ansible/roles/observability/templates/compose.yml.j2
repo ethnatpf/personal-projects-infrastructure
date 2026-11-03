@@ -10,6 +10,8 @@ services:
         volumes:
             - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
             - prometheus_data:/prometheus
+        secrets:
+            - metrics_token
         networks:
             - monitoring
             - observability_shared
@@ -100,3 +102,7 @@ networks:
   observability_shared:
     name: observability_shared
     external: true
+
+secrets:
+    metrics_token:
+        environment: METRICS_TOKEN

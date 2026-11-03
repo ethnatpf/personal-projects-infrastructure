@@ -67,14 +67,14 @@
     - plugins
     - alerting
 
-- name: Copy Grafana data source configuration
+- name: Deploy Grafana data source configuration
   ansible.builtin.template:
     src: grafana-datasources.yml.j2
     dest: "{{ observability_directory }}/grafana-provisioning/datasources/datasources.yml"
     mode: "0644"
   notify: Restart Grafana
 
-- name: Copy grafana dashboard configuration
+- name: Deploy grafana dashboard configuration
   ansible.builtin.template:
     src: dashboards.yml.j2
     dest: "{{ observability_directory }}/grafana-provisioning/dashboards/dashboards.yml"
@@ -148,6 +148,15 @@
     mode: "0644"
   notify: Recreate Tempo
 
+- name: Deploy compose env file
+  ansible.builtin.template:
+    src: compose.env.j2
+    dest: "{{ observability_directory }}/compose.env"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+
 - name: Copy observability Compose file
   ansible.builtin.template:
     src: compose.yml.j2
@@ -159,3 +168,5 @@
     project_src: "{{ observability_directory }}"
     state: present
     wait: true
+    env_files:
+      - compose.env

@@ -4,6 +4,11 @@
 
 {% for route in caddy_routes %}
 {{ route.domain }} {
+    {% if route.excluded_routes | default([], true) | length > 0 %}
+        @excluded path {{ route.excluded_routes | join(' ') }}
+        respond @excluded 404
+    {% endif %}
+
     reverse_proxy {{ route.upstream }}
 }
 

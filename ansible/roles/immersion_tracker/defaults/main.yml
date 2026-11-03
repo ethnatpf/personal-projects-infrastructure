@@ -1,0 +1,2 @@
+immersion_tracker_backend_image: ghcr.io/ethnatpf/immersion-tracker-backend:80f231b2871fc661883fdc050590afe24c08fb61
+immersion_tracker_directory: /opt/immersion-tracker

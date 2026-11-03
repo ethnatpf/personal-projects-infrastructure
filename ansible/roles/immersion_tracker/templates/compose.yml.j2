@@ -1,0 +1,29 @@
+services:
+  immersion_tracker_backend:
+    image: "{{ immersion_tracker_backend_image }}"
+    restart: unless-stopped
+    env_file:
+      - ./backend.env
+    environment:
+      AUTH_ISSUER_BASE_URL: https://auth.ethnatpf.com/
+      AUTH_AUDIENCE: https://immersion-tracker-api.ethnatpf.com
+    networks:
+      - mongodb_app
+      - proxy
+      - observability_shared
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  mongodb_app:
+    name: mongodb_app
+    external: true
+  proxy:
+    external: true
+  observability_shared:
+    name: observability_shared
+    external: true

@@ -17,3 +17,5 @@
       tags: mongodb
     - role: mongodb_backup
       tags: mongodb_backup
+    - role: immersion_tracker
+      tags: immersion_tracker

@@ -18,6 +18,7 @@ services:
       - ./keyfile:/etc/mongodb-keyfile/keyfile:ro
     networks:
       - database
+      - mongodb_app
     healthcheck:
       test:
       - CMD-SHELL
@@ -46,6 +47,8 @@ volumes:
 networks:
   database:
     name: mongodb_internal
+  mongodb_app:
+    name: mongodb_app
   observability_shared:
     name: observability_shared
     external: true

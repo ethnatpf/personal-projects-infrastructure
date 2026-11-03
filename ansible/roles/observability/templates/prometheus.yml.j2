@@ -17,3 +17,12 @@ scrape_configs:
     static_configs:
         - targets:
             - mongodb_exporter:9216
+
+
+  - job_name: immersion-tracker-api
+    metrics_path: /metrics
+    authorization:
+        type: Bearer
+        credentials_file: /run/secrets/metrics_token
+    static_configs:
+        - targets: ["immersion_tracker_backend:4000"]

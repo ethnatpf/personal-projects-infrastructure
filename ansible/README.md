@@ -102,6 +102,9 @@ vault_mongodb_backup_hourly_secret_key: "..."
 # Daily backups bucket S3 creds
 vault_mongodb_backup_daily_access_key: "..."
 vault_mongodb_backup_daily_secret_key: "..."
+
+# Token to authenticate the metrics endpoint of the immersion tracker app
+immersion_tracker_metrics_token: "..."
 ```
 
 Replace the example values with your own secrets and Discord channel webhook URL. Keep the vault password available; Ansible will prompt for it when you apply the configuration.

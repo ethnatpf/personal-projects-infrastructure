@@ -1,3 +1,7 @@
 caddy_directory: /opt/caddy
 caddy_image: caddy:2
-caddy_routes: []
+caddy_routes:
+  - domain: "immersion-tracker-api.ethnatpf.com"
+    upstream: "http://immersion_tracker_backend:4000"
+    excluded_routes:
+      - /metrics

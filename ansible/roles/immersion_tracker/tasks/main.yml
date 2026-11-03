@@ -1,0 +1,47 @@
+- name: Load variables from the mongodb role
+  ansible.builtin.include_vars:
+    file: "../../mongodb/defaults/main.yml"
+
+- name: Verify MongoDB app network exists
+  community.docker.docker_network_info:
+    name: mongodb_app
+  register: mongodb_network
+
+- name: Require MongoDB app network
+  ansible.builtin.assert:
+    that:
+      - mongodb_network.exists
+    fail_msg: "MongoDB must be deployed before immersion_tracker."
+
+- name: Create app directory
+  ansible.builtin.file:
+    path: "{{ immersion_tracker_directory }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy backend environment file
+  ansible.builtin.template:
+    src: backend.env.j2
+    dest: "{{ immersion_tracker_directory }}/backend.env"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+
+- name: Deploy compose file
+  ansible.builtin.template:
+    src: compose.yml.j2
+    dest: "{{ immersion_tracker_directory }}/compose.yml"
+    owner: root
+    group: root
+    mode: "0644"
+  no_log: true
+
+- name: Start immersion tracker containers
+  community.docker.docker_compose_v2:
+    project_src: "{{ immersion_tracker_directory }}"
+    state: present
+    wait: true
+    wait_timeout: 60
