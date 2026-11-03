@@ -93,6 +93,14 @@ vault_mongodb_immersion_tracker_user_password: "your-immersion-tracker-database-
 vault_mongodb_exporter_password: "your-mongodb-exporter-user-password"
 vault_mongodb_backup_password: "your-mongodb-backup-user-password"
 
+# Use the same value as the password that encrypts vault.yml. The deployment
+# role installs this value as a root-only file for unattended playbook runs.
+vault_personal_project_ansible_vault_password: "your-ansible-vault-password"
+
+# Fine-grained PAT for deployment commits to this infrastructure repository.
+# Limit it to this repository with Contents read/write permission and set an expiry.
+vault_personal_project_deploy_github_pat: "github_pat_..."
+
 vault_discord_webhook_url: "https://discord.com/api/webhooks/..."
 
 # Hourly backups bucket S3 creds
@@ -107,7 +115,9 @@ vault_mongodb_backup_daily_secret_key: "..."
 immersion_tracker_metrics_token: "..."
 ```
 
-Replace the example values with your own secrets and Discord channel webhook URL. Keep the vault password available; Ansible will prompt for it when you apply the configuration.
+Replace the example values with your own secrets. Keep the vault password available; Ansible will prompt for it when you apply the configuration.
+
+The personal project deployment watcher needs the Vault password on the VPS to run local playbooks without prompting. The deployment role installs `vault_personal_project_ansible_vault_password` at `/root/.config/ansible/vault-password` with root-only permissions. Keep this Vault variable synchronized with the password used to encrypt `vault.yml`, including when rekeying it.
 
 ### 2. Apply the configuration
 

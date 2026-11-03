@@ -1,0 +1,15 @@
+personal_project_deploy_checkout: /opt/personal-projects-infrastructure
+personal_project_deploy_repo: "{{ personal_project_deploy_checkout }}/ansible"
+personal_project_deploy_repo_url: https://github.com/ethnatpf/personal-projects-infrastructure.git
+personal_project_deploy_branch: main
+personal_project_deploy_git_remote: origin
+personal_project_deploy_github_username: ethnatpf
+personal_project_deploy_github_pat: "{{ vault_personal_project_deploy_github_pat | default('') }}"
+personal_project_deploy_git_askpass: /usr/local/libexec/personal-project-git-askpass
+personal_project_deploy_vault_password_file: /root/.config/ansible/vault-password
+personal_project_deploy_vault_password: "{{ vault_personal_project_ansible_vault_password | default('') }}"
+personal_project_deploy_poll_interval: 5min
+personal_project_deploy_health_timeout: 120
+personal_project_deploy_state_directory: /var/lib/personal-project-deployer
+personal_project_deploy_script: /usr/local/sbin/personal-project-deploy
+personal_project_deployments: []

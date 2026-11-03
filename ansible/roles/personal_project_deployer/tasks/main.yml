@@ -1,0 +1,237 @@
+- name: Validate configured personal project deployments
+  ansible.builtin.assert:
+    that:
+      - personal_project_deployments | length > 0
+      - (personal_project_deployments | map(attribute='name') | list | unique | list | length) == (personal_project_deployments | length)
+      - (personal_project_deployments | map(attribute='image_variable_file') | list | zip(personal_project_deployments | map(attribute='image_variable_name') | list) | list | unique | list | length) == (personal_project_deployments | length)
+    fail_msg: "Deployment names and image variable file/name pairs must be unique. Configure at least one deployment."
+
+- name: Validate each personal project deployment entry
+  ansible.builtin.assert:
+    that:
+      - item.name is match('^[a-z0-9][a-z0-9-]*$')
+      - item.image_name is match('^ghcr\.io/[a-z0-9][a-z0-9./_-]*$')
+      - item.watched_tag is match('^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$')
+      - item.image_variable_name is match('^[a-z][a-z0-9_]*$')
+      - (item.health_timeout | default(personal_project_deploy_health_timeout) | int) > 0
+      - item.app_directory is match('^/')
+      - item.image_variable_file is defined
+      - item.playbook is defined
+      - item.app_directory is defined
+      - item.compose_service is defined
+    fail_msg: "A personal project deployment entry is missing required values or has an invalid name, image, tag, or variable."
+  loop: "{{ personal_project_deployments }}"
+  loop_control:
+    label: "{{ item.name | default('invalid-entry') }}"
+
+- name: Ensure deployment prerequisites are installed
+  ansible.builtin.apt:
+    name:
+      - git
+      - python3
+      - ansible-core
+    state: present
+    update_cache: true
+
+- name: Ensure deployment checkout parent exists
+  ansible.builtin.file:
+    path: "{{ personal_project_deploy_checkout | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Inspect deployment checkout
+  ansible.builtin.stat:
+    path: "{{ personal_project_deploy_checkout }}/.git"
+  register: personal_project_deploy_checkout_stat
+
+- name: Clone infrastructure repository for the deployment watcher when absent
+  ansible.builtin.git:
+    repo: "{{ personal_project_deploy_repo_url }}"
+    dest: "{{ personal_project_deploy_checkout }}"
+    version: "{{ personal_project_deploy_branch }}"
+    update: false
+  when: not personal_project_deploy_checkout_stat.stat.exists
+
+- name: Install Ansible collections used by deployment playbooks
+  ansible.builtin.command:
+    argv:
+      - ansible-galaxy
+      - collection
+      - install
+      - -r
+      - requirements.yml
+      - -p
+      - /usr/share/ansible/collections
+  args:
+    chdir: "{{ personal_project_deploy_repo }}"
+    creates: /usr/share/ansible/collections/ansible_collections/community/docker/plugins/modules/docker_compose_v2.py
+
+- name: Verify deployment checkout matches the configured repository
+  ansible.builtin.command:
+    argv:
+      - git
+      - -C
+      - "{{ personal_project_deploy_checkout }}"
+      - remote
+      - get-url
+      - "{{ personal_project_deploy_git_remote }}"
+  register: personal_project_deploy_remote
+  changed_when: false
+
+- name: Configure public fetch URL for infrastructure repository
+  ansible.builtin.command:
+    argv:
+      - git
+      - -C
+      - "{{ personal_project_deploy_checkout }}"
+      - remote
+      - set-url
+      - "{{ personal_project_deploy_git_remote }}"
+      - "{{ personal_project_deploy_repo_url }}"
+  when: personal_project_deploy_remote.stdout != personal_project_deploy_repo_url
+
+- name: Require a GitHub fine-grained token for repository push access
+  ansible.builtin.assert:
+    that:
+      - personal_project_deploy_github_pat | length > 0
+    fail_msg: "Set vault_personal_project_deploy_github_pat to a fine-grained token with write access to this repository."
+
+- name: Require the Vault password for unattended deployment playbooks
+  ansible.builtin.assert:
+    that:
+      - personal_project_deploy_vault_password | length > 0
+    fail_msg: "Set vault_personal_project_ansible_vault_password to the same password used to encrypt vault.yml."
+
+- name: Read configured repository push URL
+  ansible.builtin.command:
+    argv:
+      - git
+      - -C
+      - "{{ personal_project_deploy_checkout }}"
+      - remote
+      - get-url
+      - --push
+      - "{{ personal_project_deploy_git_remote }}"
+  register: personal_project_deploy_current_push_url
+  changed_when: false
+  failed_when: false
+
+- name: Configure HTTPS push URL for GitHub
+  ansible.builtin.command:
+    argv:
+      - git
+      - -C
+      - "{{ personal_project_deploy_checkout }}"
+      - remote
+      - set-url
+      - --push
+      - "{{ personal_project_deploy_git_remote }}"
+      - "{{ personal_project_deploy_repo_url }}"
+  when: personal_project_deploy_current_push_url.stdout != personal_project_deploy_repo_url
+
+- name: Ensure Git askpass helper directory exists
+  ansible.builtin.file:
+    path: "{{ personal_project_deploy_git_askpass | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Create deployment configuration directory
+  ansible.builtin.file:
+    path: /etc/personal-project-deployer
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Install Git askpass helper
+  ansible.builtin.copy:
+    src: personal-project-git-askpass.py
+    dest: "{{ personal_project_deploy_git_askpass }}"
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Install root-only GitHub token credentials
+  ansible.builtin.template:
+    src: github-auth.json.j2
+    dest: /etc/personal-project-deployer/github-auth.json
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+
+- name: Create Ansible Vault password directory
+  ansible.builtin.file:
+    path: "{{ personal_project_deploy_vault_password_file | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Install root-only Ansible Vault password for unattended deployments
+  ansible.builtin.copy:
+    content: "{{ personal_project_deploy_vault_password }}\n"
+    dest: "{{ personal_project_deploy_vault_password_file }}"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+
+- name: Create deployment state directory
+  ansible.builtin.file:
+    path: "{{ personal_project_deploy_state_directory }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Install deployment watcher script
+  ansible.builtin.copy:
+    src: personal-project-deploy.py
+    dest: "{{ personal_project_deploy_script }}"
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Install per-project watcher configuration
+  ansible.builtin.template:
+    src: personal-project-deploy.env.j2
+    dest: "/etc/personal-project-deployer/{{ item.name }}.env"
+    owner: root
+    group: root
+    mode: "0600"
+  loop: "{{ personal_project_deployments }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Install generic deployment watcher systemd service template
+  ansible.builtin.template:
+    src: personal-project-deploy@.service.j2
+    dest: /etc/systemd/system/personal-project-deploy@.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload systemd
+
+- name: Install generic deployment watcher systemd timer template
+  ansible.builtin.template:
+    src: personal-project-deploy@.timer.j2
+    dest: /etc/systemd/system/personal-project-deploy@.timer
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload systemd
+
+- name: Enable and start each personal project deployment timer
+  ansible.builtin.systemd_service:
+    name: "personal-project-deploy@{{ item.name }}.timer"
+    enabled: true
+    state: started
+    daemon_reload: true
+  loop: "{{ personal_project_deployments }}"
+  loop_control:
+    label: "{{ item.name }}"

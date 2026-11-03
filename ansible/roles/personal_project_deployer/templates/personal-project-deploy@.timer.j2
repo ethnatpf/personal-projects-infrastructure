@@ -1,0 +1,11 @@
+[Unit]
+Description=Poll GHCR for personal project updates (%i)
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec={{ personal_project_deploy_poll_interval }}
+Persistent=true
+Unit=personal-project-deploy@%i.service
+
+[Install]
+WantedBy=timers.target

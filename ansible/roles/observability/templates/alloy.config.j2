@@ -42,6 +42,29 @@ loki.source.journal "pbm_jobs" {
   forward_to    = [loki.write.local.receiver]
 }
 
+loki.relabel "personal_project_deploy_journal" {
+  forward_to = []
+
+  rule {
+    source_labels = ["__journal__systemd_unit"]
+    regex         = "personal-project-deploy@.*\\.service"
+    action        = "keep"
+  }
+
+  rule {
+    source_labels = ["__journal__systemd_unit"]
+    target_label  = "unit"
+  }
+}
+
+loki.source.journal "personal_project_deploy_jobs" {
+  path          = "/var/log/journal"
+  max_age       = "24h"
+  labels        = { service = "personal-project-deploy" }
+  relabel_rules = loki.relabel.personal_project_deploy_journal.rules
+  forward_to    = [loki.write.local.receiver]
+}
+
 loki.write "local" {
   endpoint {
     url = "http://loki:3100/loki/api/v1/push"

@@ -1,0 +1,21 @@
+[Unit]
+Description=Check and deploy personal project image (%i)
+Wants=network-online.target
+After=network-online.target docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+WorkingDirectory={{ personal_project_deploy_repo }}
+EnvironmentFile=/etc/personal-project-deployer/%i.env
+ExecStart={{ personal_project_deploy_script }}
+TimeoutStartSec=15min
+StandardOutput=journal
+StandardError=journal
+UMask=0077
+PrivateTmp=true
+ProtectHome=read-only
+ProtectSystem=full
+ReadWritePaths={{ personal_project_deploy_checkout }} {{ personal_project_deploy_state_directory }} {{ personal_project_deployments | map(attribute='app_directory') | unique | join(' ') }} /var/run/docker.sock

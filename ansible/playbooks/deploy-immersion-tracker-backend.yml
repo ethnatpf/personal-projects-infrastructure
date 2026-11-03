@@ -1,0 +1,11 @@
+- name: Deploy Immersion Tracker backend only
+  hosts: localhost
+  connection: local
+  become: true
+  gather_facts: false
+
+  vars_files:
+    - ../roles/mongodb/defaults/main.yml
+
+  roles:
+    - role: immersion_tracker
