@@ -44,4 +44,4 @@
     project_src: "{{ immersion_tracker_directory }}"
     state: present
     wait: true
-    wait_timeout: 60
+    wait_timeout: 120

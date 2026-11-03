@@ -25,6 +25,18 @@ Failed digests remain on the VPS across reboots. After fixing or intentionally r
 sudo /usr/local/sbin/personal-project-deploy clear-failed immersion-tracker-backend sha256:<digest>
 ```
 
+To list the failed digests and their failure details for the backend:
+
+```bash
+sudo jq '.failed_digests' /var/lib/personal-project-deployer/immersion-tracker-backend.json
+```
+
+If rollback itself fails, fix the reported issue and retry the recorded rollback explicitly:
+
+```bash
+sudo /usr/local/sbin/personal-project-deploy retry-rollback immersion-tracker-backend
+```
+
 ## GitHub credentials on the VPS
 
 The VPS uses a fine-grained personal access token (PAT) over HTTPS to push successful image updates to the infrastructure repository. The token should be limited to this repository and granted only the contents permission needed to push. It is stored in Ansible Vault and installed in a root-only file on the VPS. Git reads it through a small askpass helper; the token is not placed in the remote URL, command arguments, or logs. GitHub Actions does not receive this token.

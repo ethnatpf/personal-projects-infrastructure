@@ -26,7 +26,7 @@ def load_environment_file(path):
             os.environ.setdefault(key, value)
 
 
-if not os.environ.get("DEPLOY_NAME") and len(sys.argv) == 4 and sys.argv[1] == "clear-failed":
+if not os.environ.get("DEPLOY_NAME") and len(sys.argv) >= 3 and sys.argv[1] in ("clear-failed", "retry-rollback"):
     deployment_name = sys.argv[2]
     if not re.fullmatch(r"[a-z0-9][a-z0-9-]*", deployment_name):
         raise SystemExit("invalid deployment name")
@@ -48,6 +48,7 @@ ANSIBLE_PLAYBOOK = REPO / os.environ["ANSIBLE_PLAYBOOK"]
 VAULT_PASSWORD_FILE = os.environ["VAULT_PASSWORD_FILE"]
 GIT_REMOTE = os.environ["GIT_REMOTE"]
 HEALTH_TIMEOUT = int(os.environ["HEALTH_TIMEOUT"])
+ANSIBLE_REMOTE_TMP = os.environ["ANSIBLE_REMOTE_TMP"]
 VAR_NAME = os.environ["IMAGE_VARIABLE_NAME"]
 REF_RE = re.compile(r"^ghcr\.io/[a-z0-9][a-z0-9._/-]*@sha256:[a-f0-9]{64}$")
 DIGEST_RE = re.compile(r"^sha256:[a-f0-9]{64}$")
@@ -221,7 +222,15 @@ def ensure_clean_repository():
 
 
 def run_playbook():
-    command = ["/usr/bin/ansible-playbook", "-i", "inventory/deploy-localhost.ini", str(ANSIBLE_PLAYBOOK), "--become"]
+    command = [
+        "/usr/bin/ansible-playbook",
+        "-i",
+        "inventory/deploy-localhost.ini",
+        str(ANSIBLE_PLAYBOOK),
+        "--become",
+        "--extra-vars",
+        f"ansible_remote_tmp={ANSIBLE_REMOTE_TMP}",
+    ]
     env = git_env()
     if VAULT_PASSWORD_FILE:
         env["ANSIBLE_VAULT_PASSWORD_FILE"] = VAULT_PASSWORD_FILE
@@ -401,6 +410,40 @@ def recover_interrupted(state):
     rollback(state, attempt, "interrupted deployment did not leave the candidate healthy")
 
 
+def retry_failed_rollback(state):
+    attempt = state.get("in_progress")
+    if not attempt or attempt.get("phase") != "rollback_failed":
+        raise OperationalError("there is no recorded rollback failure to retry")
+    cause = attempt.get("failure", "deployment failed")
+    log(f"manually retrying rollback to {attempt['previous_ref']}")
+    state["in_progress"] = {**attempt, "phase": "rolling_back"}
+    save_state(state)
+    try:
+        set_image_variable(attempt["previous_ref"])
+        run_playbook()
+        wait_healthy(attempt["previous_ref"])
+    except Exception as exc:
+        state["in_progress"] = {
+            **attempt,
+            "phase": "rollback_failed",
+            "failure": cause,
+            "rollback_error": str(exc),
+        }
+        save_state(state)
+        raise OperationalError(f"manual rollback retry failed: {exc}") from exc
+
+    state["successful_digest"] = attempt["previous_digest"]
+    state["successful_ref"] = attempt["previous_ref"]
+    state["in_progress"] = None
+    state["pending_git_sync"] = {
+        "digest": attempt["previous_digest"],
+        "image_ref": attempt["previous_ref"],
+    }
+    blacklist(state, attempt["digest"], cause)
+    save_state(state)
+    log(f"manual rollback recovery succeeded; {attempt['previous_ref']} is healthy")
+
+
 def main():
     if not re.fullmatch(r"[a-z0-9][a-z0-9-]*", DEPLOY_NAME):
         raise OperationalError("configured deployment name is invalid")
@@ -425,8 +468,16 @@ def main():
             save_state(state)
             log(f"removed {digest} from failed image history ({before - len(state['failed_digests'])} entry removed)")
             return 0
+        if len(sys.argv) == 3 and sys.argv[1] == "retry-rollback":
+            if sys.argv[2] != DEPLOY_NAME:
+                raise OperationalError("manual recovery command does not match this deployment")
+            retry_failed_rollback(state)
+            return 0
         if len(sys.argv) != 1:
-            raise OperationalError("usage: personal-project-deploy clear-failed <deployment-name> sha256:<digest>")
+            raise OperationalError(
+                "usage: personal-project-deploy clear-failed <deployment-name> sha256:<digest> "
+                "| retry-rollback <deployment-name>"
+            )
         recover_interrupted(state)
         if state.get("pending_git_sync"):
             git_sync(state)
