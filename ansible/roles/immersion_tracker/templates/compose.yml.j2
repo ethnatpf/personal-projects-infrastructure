@@ -7,6 +7,10 @@ services:
     environment:
       AUTH_ISSUER_BASE_URL: https://auth.ethnatpf.com/
       AUTH_AUDIENCE: https://immersion-tracker-api.ethnatpf.com
+      OTEL_SERVICE_NAME: immersion-tracker-api
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://alloy:4318/v1/traces
+      OTEL_SDK_DISABLED: false
+
     networks:
       - mongodb_app
       - proxy

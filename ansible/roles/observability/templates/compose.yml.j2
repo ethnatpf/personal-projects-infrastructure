@@ -77,6 +77,7 @@ services:
             - loki
         networks:
             - monitoring
+            - observability_shared
     tempo:
         image: "grafana/tempo:3.1.1"
         restart: unless-stopped
