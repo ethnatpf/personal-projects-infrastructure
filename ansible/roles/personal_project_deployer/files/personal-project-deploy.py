@@ -242,13 +242,13 @@ def inspect_container():
     container_id = (result.stdout or "").strip()
     if result.returncode or not container_id:
         return None
-    result = run(["/usr/bin/docker", "inspect", "--format", "{{.Config.Image}}|{{.State.Status}}|{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}", container_id], check=False)
+    result = run(["/usr/bin/docker", "inspect", "--format", "{{.Config.Image}}|{{.State.Status}}|{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}|{{.Image}}", container_id], check=False)
     if result.returncode:
         return None
-    parts = result.stdout.strip().split("|", 2)
-    if len(parts) != 3:
+    parts = result.stdout.strip().split("|", 3)
+    if len(parts) != 4:
         return None
-    return {"image": parts[0], "status": parts[1], "health": parts[2]}
+    return {"image": parts[0], "status": parts[1], "health": parts[2], "image_id": parts[3]}
 
 
 def wait_healthy(expected_ref):
@@ -265,8 +265,8 @@ def wait_healthy(expected_ref):
         time.sleep(5)
 
 
-def current_container_ref():
-    container = inspect_container()
+def current_container_ref(container=None):
+    container = container or inspect_container()
     if not container or container["status"] != "running":
         raise OperationalError("cannot identify a running image to preserve for rollback")
     ref = container["image"]
@@ -275,15 +275,34 @@ def current_container_ref():
     return ref
 
 
-def digest_for_ref(ref):
-    if ref.startswith(f"ghcr.io/{IMAGE_NAME}@"):
-        digest = ref.split("@", 1)[1]
-        if not DIGEST_RE.fullmatch(digest):
-            raise OperationalError("running container has an invalid immutable image reference")
-        return digest
-    if ref.startswith(f"ghcr.io/{IMAGE_NAME}:"):
-        return resolve_digest(ref.rsplit(":", 1)[1])
-    raise OperationalError("running image reference is outside the configured GHCR repository")
+def current_container_digest(container, preferred_digest=""):
+    """Return a GHCR digest attached to the image actually used by the container."""
+    if not container or not container.get("image_id"):
+        raise OperationalError("cannot identify the running container image")
+    result = run(
+        ["/usr/bin/docker", "image", "inspect", "--format", "{{json .RepoDigests}}", container["image_id"]],
+        check=False,
+    )
+    if result.returncode:
+        raise OperationalError("cannot inspect the running container image digests")
+    try:
+        repo_digests = json.loads(result.stdout.strip() or "null") or []
+    except json.JSONDecodeError as exc:
+        raise OperationalError("Docker returned invalid image digest metadata") from exc
+
+    prefix = f"ghcr.io/{IMAGE_NAME}@"
+    digests = {
+        ref[len(prefix):]
+        for ref in repo_digests
+        if isinstance(ref, str) and ref.startswith(prefix) and DIGEST_RE.fullmatch(ref[len(prefix):])
+    }
+    if preferred_digest in digests:
+        return preferred_digest
+    if len(digests) == 1:
+        return next(iter(digests))
+    if not digests:
+        raise OperationalError("running container image has no matching GHCR repo digest")
+    raise OperationalError("running container image has multiple GHCR digests and none matches the recorded deployed digest")
 
 
 def git_sync(state):
@@ -492,10 +511,14 @@ def main():
             # checkout once before treating the missing entry as an error.
             pull_latest_code()
             configured_ref = parse_image_variable()
-        running_ref = current_container_ref()
+        running_container = inspect_container()
+        running_ref = current_container_ref(running_container)
         if configured_ref != running_ref:
             raise OperationalError("tracked image variable differs from the running container; refusing automatic deployment")
-        running_digest = digest_for_ref(running_ref)
+        preferred_running_digest = state.get("successful_digest", "")
+        if not preferred_running_digest and "@" in running_ref:
+            preferred_running_digest = running_ref.split("@", 1)[1]
+        running_digest = current_container_digest(running_container, preferred_running_digest)
         if state.get("successful_digest"):
             if state["successful_digest"] != running_digest or state.get("successful_ref") != running_ref:
                 raise OperationalError("recorded deployed state differs from the running container; refusing automatic deployment")
