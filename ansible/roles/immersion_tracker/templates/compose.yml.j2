@@ -13,7 +13,7 @@ services:
 
     networks:
       - mongodb_app
-      - proxy
+      - immersion_tracker
       - observability_shared
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
@@ -22,7 +22,28 @@ services:
       retries: 3
       start_period: 10s
 
+  immersion_tracker_frontend:
+    image: "{{ immersion_tracker_frontend_image }}"
+    restart: unless-stopped
+    env_file:
+      - ./frontend.env
+    environment:
+      APP_BASE_URL: https://immersion-tracker.ethnatpf.com
+      API_URL: http://immersion_tracker_backend:4000
+      AUTH0_DOMAIN: auth.ethnatpf.com
+      AUTH0_AUDIENCE: https://immersion-tracker-api.ethnatpf.com
+    networks:
+      - immersion_tracker
+      - proxy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
 networks:
+  immersion_tracker: {}
   mongodb_app:
     name: mongodb_app
     external: true

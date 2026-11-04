@@ -30,6 +30,15 @@
     mode: "0600"
   no_log: true
 
+- name: Deploy frontend environment file
+  ansible.builtin.template:
+    src: frontend.env.j2
+    dest: "{{ immersion_tracker_directory }}/frontend.env"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+
 - name: Deploy compose file
   ansible.builtin.template:
     src: compose.yml.j2

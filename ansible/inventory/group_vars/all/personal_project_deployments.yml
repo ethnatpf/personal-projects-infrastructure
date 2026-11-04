@@ -4,7 +4,16 @@ personal_project_deployments:
     watched_tag: stable
     image_variable_file: inventory/group_vars/all/immersion_tracker.yml
     image_variable_name: immersion_tracker_backend_image
-    playbook: playbooks/deploy-immersion-tracker-backend.yml
+    playbook: playbooks/deploy-immersion-tracker.yml
     app_directory: /opt/immersion-tracker
     compose_service: immersion_tracker_backend
     health_timeout: 60
+  - name: immersion-tracker-frontend
+    image_name: ghcr.io/ethnatpf/immersion-tracker-frontend
+    watched_tag: stable
+    image_variable_file: inventory/group_vars/all/immersion_tracker.yml
+    image_variable_name: immersion_tracker_frontend_image
+    playbook: playbooks/deploy-immersion-tracker.yml
+    app_directory: /opt/immersion-tracker
+    compose_service: immersion_tracker_frontend
+    health_timeout: 120

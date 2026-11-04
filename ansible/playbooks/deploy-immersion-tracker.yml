@@ -1,4 +1,4 @@
-- name: Deploy Immersion Tracker backend only
+- name: Deploy Immersion Tracker
   hosts: localhost
   connection: local
   become: true

@@ -113,6 +113,11 @@ vault_mongodb_backup_daily_secret_key: "..."
 
 # Token to authenticate the metrics endpoint of the immersion tracker app
 immersion_tracker_metrics_token: "..."
+
+# Auth0 credentials used by the Immersion Tracker frontend
+vault_immersion_tracker_auth0_client_id: "..."
+vault_immersion_tracker_auth0_client_secret: "..."
+vault_immersion_tracker_auth0_secret: "..."
 ```
 
 Replace the example values with your own secrets. Keep the vault password available; Ansible will prompt for it when you apply the configuration.

@@ -19,19 +19,19 @@ The GHCR packages are public, so the VPS can check and pull images without regis
 5. On success, the VPS commits and pushes the image-variable change. If GitHub is temporarily unavailable, the deployed state is retained locally and Git synchronization is retried later.
 6. If deployment or health verification fails, the VPS restores the previous image and verifies its health. The failed digest is saved locally and will not be retried automatically.
 
-Failed digests remain on the VPS across reboots. After fixing or intentionally retrying a release, remove its digest from that application's failure history on the VPS:
+Failed digests remain on the VPS across reboots. After fixing or intentionally retrying a release, remove its digest from that application's failure history on the VPS. For example, for the backend:
 
 ```bash
 sudo /usr/local/sbin/personal-project-deploy clear-failed immersion-tracker-backend sha256:<digest>
 ```
 
-To list the failed digests and their failure details for the backend:
+To list failed digests and their failure details for the backend:
 
 ```bash
 sudo jq '.failed_digests' /var/lib/personal-project-deployer/immersion-tracker-backend.json
 ```
 
-If rollback itself fails, fix the reported issue and retry the recorded rollback explicitly:
+Use `immersion-tracker-frontend` in these commands to inspect or retry frontend deployments. If rollback itself fails, fix the reported issue and retry the recorded rollback explicitly:
 
 ```bash
 sudo /usr/local/sbin/personal-project-deploy retry-rollback immersion-tracker-backend
@@ -45,9 +45,11 @@ Set the token in Ansible Vault as `vault_personal_project_deploy_github_pat`. Gi
 
 The deployment role also installs `vault_personal_project_ansible_vault_password` as a root-only password file on the VPS, so scheduled local Ansible runs can decrypt Vault variables without prompting. Keep it equal to the password used to encrypt `vault.yml`, including after rekeying.
 
+The Immersion Tracker backend and frontend watchers both run `playbooks/deploy-immersion-tracker.yml`; each watcher still updates and health-checks only its configured Compose service.
+
 ## Checking deployment status
 
-The timer and service are managed by Ansible. Check their status and recent logs on the VPS with:
+The timer and service are managed by Ansible. Check status and recent logs for either application on the VPS. For example, for the backend:
 
 ```bash
 systemctl status personal-project-deploy@immersion-tracker-backend.timer
