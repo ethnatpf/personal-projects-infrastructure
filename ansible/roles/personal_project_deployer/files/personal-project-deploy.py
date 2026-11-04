@@ -484,7 +484,14 @@ def main():
 
         digest = resolve_digest(WATCH_TAG)
         candidate_ref = image_ref(digest)
-        configured_ref = parse_image_variable()
+        try:
+            configured_ref = parse_image_variable()
+        except OperationalError:
+            # A newly enabled watcher may be configured before the VPS
+            # checkout has received its image variable. Refresh the clean
+            # checkout once before treating the missing entry as an error.
+            pull_latest_code()
+            configured_ref = parse_image_variable()
         running_ref = current_container_ref()
         if configured_ref != running_ref:
             raise OperationalError("tracked image variable differs from the running container; refusing automatic deployment")
