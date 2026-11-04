@@ -1,14 +1,3 @@
-# TODO: Before deploying the immersion-tracker backend to production,
-# update this playbook to stop the backend Docker Compose service
-# before starting the safety backup or restore.
-#
-# This prevents application writes during recovery.
-# Keep MongoDB and the PBM agent running.
-#
-# After a successful restore and database validation, restart the
-# backend service. If restoration fails, leave it stopped to avoid
-# application writes against a partially restored database.
-
 - name: Restore MongoDB
   hosts: all
   become: true
@@ -16,12 +5,15 @@
 
   vars_files:
     - ../roles/mongodb/defaults/main.yml
+    - ../roles/immersion_tracker/defaults/main.yml
 
   vars:
     # Main is the profile for hourly
     restore_profile: main
     restore_backup_name: latest
     restore_directory: /opt/mongodb-backup
+    # Enable when PBM's catalog needs to be refreshed from backup storage.
+    restore_sync_storage: false
 
     # Only skip safety backups when there are no non-empty user databases.
     restore_skip_safety_backup: false
@@ -108,7 +100,9 @@
           - config
           - --force-resync
         chdir: "{{ restore_directory }}"
-      when: restore_profile == 'main'
+      when:
+        - restore_sync_storage | bool
+        - restore_profile == 'main'
       changed_when: true
 
     - name: Synchronize named PBM storage profile
@@ -125,7 +119,9 @@
           - "{{ restore_profile }}"
           - --wait
         chdir: "{{ restore_directory }}"
-      when: restore_profile != 'main'
+      when:
+        - restore_sync_storage | bool
+        - restore_profile != 'main'
       changed_when: true
 
     - name: Retrieve available backups
@@ -148,7 +144,7 @@
         pbm_backups.rc == 0
         and
         'snapshots' in (pbm_backups.stdout | from_json)
-      retries: 60
+      retries: 15
       delay: 5
 
     - name: Parse PBM backup catalog
@@ -215,6 +211,29 @@
 
     - name: Restore MongoDB
       block:
+        - name: Confirm destructive MongoDB restore
+          ansible.builtin.pause:
+            prompt: >-
+              About to restore backup {{ selected_backup }}
+              from profile {{ restore_profile }}.
+              This may overwrite existing MongoDB data.
+              Type RESTORE to continue
+          register: restore_confirmation
+
+        - name: Require restore confirmation
+          ansible.builtin.assert:
+            that:
+              - restore_confirmation.user_input == 'RESTORE'
+            fail_msg: "Restore canceled."
+
+        - name: Stop Immersion Tracker backend before backup and restore
+          community.docker.docker_compose_v2:
+            project_src: "{{ immersion_tracker_directory }}"
+            state: stopped
+            services:
+              - immersion_tracker_backend
+            dependencies: false
+
         - name: Stop PBM timers during restore
           ansible.builtin.systemd_service:
             name: "{{ item }}"
@@ -300,21 +319,6 @@
               ansible.builtin.debug:
                 msg: "Safety backup created: {{ new_safety_backups[0] }}"
 
-        - name: Confirm destructive MongoDB restore
-          ansible.builtin.pause:
-            prompt: >-
-              About to restore backup {{ selected_backup }}
-              from profile {{ restore_profile }}.
-              This may overwrite existing MongoDB data.
-              Type RESTORE to continue
-          register: restore_confirmation
-
-        - name: Require restore confirmation
-          ansible.builtin.assert:
-            that:
-              - restore_confirmation.user_input == 'RESTORE'
-            fail_msg: "Restore canceled."
-
         - name: Restore MongoDB from selected backup
           ansible.builtin.command:
             argv:
@@ -349,6 +353,15 @@
         - name: Display MongoDB status
           ansible.builtin.debug:
             var: restored_mongodb_status
+
+        - name: Start Immersion Tracker backend after successful restore
+          community.docker.docker_compose_v2:
+            project_src: "{{ immersion_tracker_directory }}"
+            state: present
+            services:
+              - immersion_tracker_backend
+            dependencies: false
+            recreate: never
 
       always:
         - name: Resume PBM timers

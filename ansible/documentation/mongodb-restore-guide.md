@@ -4,11 +4,11 @@ This guide covers the Ansible restore playbook (`playbooks/restore-mongodb.yml`)
 
 ## How the restore works
 
-1. The playbook synchronizes the selected PBM storage catalog and waits until the backup list is available.
+1. By default, the playbook uses PBM's current backup catalog. Set `restore_sync_storage=true` to synchronize the selected storage catalog before listing backups.
 2. It selects the newest completed logical backup (`latest`) or the explicitly named backup from the requested source.
 3. It stops the scheduled PBM backup and cleanup timers.
 4. **By default, it creates a fresh safety backup in the `pre_restore` storage profile** before overwriting MongoDB data. Safety backups are stored separately from hourly and daily backups and are not subject to their automatic cleanup schedules.
-5. It asks for an explicit `RESTORE` confirmation, restores the selected backup, checks MongoDB, and resumes the timers.
+5. It stops the Immersion Tracker backend before the safety backup and restore. After an explicit `RESTORE` confirmation, it restores the selected backup, checks MongoDB, and resumes the timers. A successful restore starts the backend again; if the restore or MongoDB validation fails, the backend stays stopped.
 
 ## Prerequisites
 
@@ -70,12 +70,14 @@ For a specific safety backup, add `-e restore_backup_name=<BACKUP_NAME>`.
 ## Restore onto a clean VPS
 
 1. Provision the VPS using the configure-vps playbook.
-2. Ensure no application is writing to MongoDB. When safety backup skipping is requested, the playbook automatically checks that the target database is empty and fails if it contains data.
-3. Run the restore with the safety backup skipped:
+2. Synchronize PBM's storage catalog because the clean VPS may not yet have the remote backup list. Enable this with `restore_sync_storage=true`.
+3. Ensure no application is writing to MongoDB. When safety backup skipping is requested, the playbook automatically checks that the target database is empty and fails if it contains data.
+4. Run the restore with storage synchronization enabled and the safety backup skipped:
 
 ```bash
 ansible-playbook playbooks/restore-mongodb.yml --ask-vault-pass \
   -e restore_profile=daily \
+  -e restore_sync_storage=true \
   -e restore_skip_safety_backup=true
 ```
 
@@ -83,4 +85,4 @@ Change `restore_profile=daily` to `main` for hourly backups or `pre_restore` for
 
 ## After restoring
 
-Confirm the MongoDB health check passes, the scheduled PBM timers are running, and application data is correct before allowing application writes again. Check PBM status and logs if anything fails. Do not assume a failed playbook automatically restarted the application.
+Confirm the MongoDB health check passes, the scheduled PBM timers are running, and application data is correct before allowing application writes again. Check PBM status and logs if anything fails. If the restore failed, the backend remains stopped; restart it only after MongoDB is healthy and ready for application writes.
