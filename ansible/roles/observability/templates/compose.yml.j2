@@ -7,6 +7,8 @@ services:
             - --storage.tsdb.path=/prometheus
             - --storage.tsdb.retention.time={{ prometheus_retention }}
             - "--log.level=warn"
+        env_file:
+            - ./prometheus.env
         volumes:
             - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
             - prometheus_data:/prometheus

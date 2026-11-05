@@ -10,6 +10,7 @@ services:
       OTEL_SERVICE_NAME: immersion-tracker-api
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://alloy:4318/v1/traces
       OTEL_SDK_DISABLED: false
+      OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: http/protobuf
 
     networks:
       - mongodb_app

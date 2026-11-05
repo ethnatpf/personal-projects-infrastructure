@@ -148,10 +148,10 @@
     mode: "0644"
   notify: Recreate Tempo
 
-- name: Deploy compose env file
+- name: Deploy prometheus env file
   ansible.builtin.template:
-    src: compose.env.j2
-    dest: "{{ observability_directory }}/compose.env"
+    src: prometheus.env.j2
+    dest: "{{ observability_directory }}/prometheus.env"
     owner: root
     group: root
     mode: "0600"
