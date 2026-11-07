@@ -10,6 +10,8 @@
   ansible.builtin.apt:
     name: python3-venv
     state: present
+    # unattended-upgr might hold the lock for quite some time (especially on new VPS)
+    lock_timeout: 300
 
 - name: Create MongoDB administration virtual environment
   ansible.builtin.command:
@@ -72,7 +74,7 @@
 - name: Initialize MongoDB replica set
   ansible.builtin.command:
     argv:
-      - /usr/bin/python3
+      - /opt/mongodb-venv/bin/python
       - -c
       - |
         import sys

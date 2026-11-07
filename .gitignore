@@ -1,3 +1,4 @@
 # Ansible
-ansible/inventory/hosts.ini
+ansible/inventory/*.ini
+!ansible/inventory/deploy-localhost.ini
 *.retry

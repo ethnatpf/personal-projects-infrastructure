@@ -1,6 +1,8 @@
 - name: Configure VPS
   hosts: production
   become: true
+  vars_files:
+    - ../inventory/group_vars/vault.yml
 
   roles:
     - role: security
