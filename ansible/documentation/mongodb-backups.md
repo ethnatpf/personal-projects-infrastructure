@@ -32,6 +32,18 @@ docker compose exec -T pbm pbm profile sync daily --wait
 
 ## Troubleshooting
 
+### Grafana alerts on a newly set up VPS
+
+Grafana may alert after a VPS is first set up because the scheduled PBM backup and cleanup jobs have not run yet. These alerts should resolve on their own within 24 hours. To clear them sooner and verify that the jobs work, start them manually on the VPS:
+
+```bash
+systemctl start pbm-cleanup_daily.service
+systemctl start pbm-cleanup_hourly.service
+systemctl start pbm-daily.service
+```
+
+The hourly backup job is not included inside the above command as it should run by itself every hour, compared to the other ones that run every day.
+
 ### PBM reports that it cannot get the storage configuration
 
 If PBM logs an error like:
