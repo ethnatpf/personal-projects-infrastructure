@@ -92,3 +92,7 @@ If Grafana fails to start, inspect its logs:
 ```bash
 sudo docker compose -f /opt/observability/compose.yml logs --tail 50 grafana
 ```
+
+## MongoDB
+
+For MongoDB backup storage, schedules, and troubleshooting, see the [MongoDB backups guide](documentation/mongodb-backups.md). For restore procedures, see the [MongoDB restore guide](documentation/mongodb-restore-guide.md).
