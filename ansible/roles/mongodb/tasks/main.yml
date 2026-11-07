@@ -150,6 +150,27 @@
     ansible_python_interpreter: /opt/mongodb-venv/bin/python
   no_log: true
 
+- name: Create MongoDB exporter system version read role
+  community.mongodb.mongodb_role:
+    login_host: 127.0.0.1
+    login_port: 27017
+    login_user: "{{ mongodb_root_username }}"
+    login_password: "{{ vault_mongodb_root_password }}"
+    login_database: admin
+    database: admin
+    name: mongodbExporterSystemVersionRead
+    privileges:
+      - resource:
+          db: admin
+          collection: system.version
+        actions:
+          - find
+    roles: []
+    state: present
+  vars:
+    ansible_python_interpreter: /opt/mongodb-venv/bin/python
+  no_log: true
+
 - name: Create MongoDB exporter user
   community.mongodb.mongodb_user:
     login_host: 127.0.0.1
@@ -167,6 +188,8 @@
         role: read
       - db: admin
         role: read
+      - db: admin
+        role: mongodbExporterSystemVersionRead
     state: present
   vars:
     ansible_python_interpreter: /opt/mongodb-venv/bin/python
