@@ -3,5 +3,6 @@ observability_directory: /opt/observability
 prometheus_retention: 7d
 grafana_tailscale_ip: ""
 grafana_infrastructure_folder_name: Infrastructure
+grafana_immersion_tracker_folder_name: Immersion Tracker
 
 tempo_retention: "72h"

@@ -10,3 +10,13 @@ providers:
     updateIntervalSeconds: 10
     options:
       path: /etc/grafana/provisioning/dashboards/infrastructure
+
+  - name: Immersion_tracker
+    orgId: 1
+    folder: "{{ grafana_immersion_tracker_folder_name }}"
+    type: file
+    disableDeletion: false
+    allowUiUpdates: false
+    updateIntervalSeconds: 10
+    options:
+        path: /etc/grafana/provisioning/dashboards/immersion-tracker

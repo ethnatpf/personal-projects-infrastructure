@@ -86,6 +86,7 @@
     src: ../files/dashboards
     dest: "{{ observability_directory }}/grafana-provisioning"
     mode: "0644"
+  notify: Restart Grafana
 
 - name: Deploy Grafana alerting secret
   ansible.builtin.template:
