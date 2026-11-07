@@ -79,6 +79,7 @@
     src: dashboards.yml.j2
     dest: "{{ observability_directory }}/grafana-provisioning/dashboards/dashboards.yml"
     mode: "0644"
+  notify: Restart Grafana
 
 - name: Copy Grafana dashboards
   ansible.builtin.copy:

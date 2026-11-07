@@ -3,8 +3,7 @@ apiVersion: 1
 providers:
   - name: Infrastructure
     orgId: 1
-    folder: Infrastructure
-    folderUid: "{{ grafana_infrastructure_folder_uid }}"
+    folder: "{{ grafana_infrastructure_folder_name }}"
     type: file
     disableDeletion: false
     allowUiUpdates: false
