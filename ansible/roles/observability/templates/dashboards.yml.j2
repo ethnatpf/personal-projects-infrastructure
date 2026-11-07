@@ -20,3 +20,13 @@ providers:
     updateIntervalSeconds: 10
     options:
         path: /etc/grafana/provisioning/dashboards/immersion-tracker
+
+  - name: MongoDB
+    orgId: 1
+    folder: "MongoDB"
+    type: file
+    disableDeletion: false
+    allowUiUpdates: false
+    updateIntervalSeconds: 10
+    options:
+        path: /etc/grafana/provisioning/dashboards/mongodb
