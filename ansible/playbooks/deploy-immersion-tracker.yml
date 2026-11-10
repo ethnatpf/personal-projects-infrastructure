@@ -6,6 +6,7 @@
 
   vars_files:
     - ../roles/mongodb/defaults/main.yml
+    - ../inventory/group_vars/vault.yml
 
   roles:
     - role: immersion_tracker
