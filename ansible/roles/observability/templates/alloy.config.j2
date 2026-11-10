@@ -65,6 +65,46 @@ loki.source.journal "personal_project_deploy_jobs" {
   forward_to    = [loki.write.local.receiver]
 }
 
+loki.relabel "faro_logs" {
+  forward_to = [loki.write.local.receiver]
+
+  rule {
+    source_labels = ["app_name"]
+    target_label  = "service_name"
+  }
+
+  rule {
+    action = "labeldrop"
+    regex  = "app_name"
+  }
+}
+
+faro.receiver "integrations_app_agent_receiver" {
+  log_format = "json"
+
+  server {
+    listen_address            = "0.0.0.0"
+    listen_port               = 12347
+    max_allowed_payload_size  = "2MiB"
+
+    rate_limiting {
+      rate = 100
+    }
+  }
+
+  sourcemaps {
+    download_from_origins = ["https://immersion-tracker.ethnatpf.com"]
+  }
+
+  // Empty values copy the corresponding Faro payload fields into labels.
+  extra_log_labels = { "kind" = "", "app_name" = "", "type" = "" }
+
+  output {
+    logs   = [loki.relabel.faro_logs.receiver]
+    traces = [otelcol.exporter.otlp.tempo.input]
+  }
+}
+
 loki.write "local" {
   endpoint {
     url = "http://loki:3100/loki/api/v1/push"
