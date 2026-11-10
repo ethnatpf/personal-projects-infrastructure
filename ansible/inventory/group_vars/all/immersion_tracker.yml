@@ -1,4 +1,4 @@
 # The last successfully deployed immutable backend image. The VPS watcher updates
 # this line only after deployment and health verification succeed.
 immersion_tracker_backend_image: ghcr.io/ethnatpf/immersion-tracker-backend@sha256:bd6a18b6178b4a1395de6cd090f58a7db5235db11beeadcd756dd744bc521983
-immersion_tracker_frontend_image: ghcr.io/ethnatpf/immersion-tracker-frontend@sha256:3c5c73500dd163ea3ae281b8e2c0d54b7b6ab05fa92f5ca0bbcf8989dc3e0cf8
+immersion_tracker_frontend_image: ghcr.io/ethnatpf/immersion-tracker-frontend@sha256:5b5f26fda571fe02ac7f09ea32eb5bd26243486b6556ea62eb14af3101e4ba63
