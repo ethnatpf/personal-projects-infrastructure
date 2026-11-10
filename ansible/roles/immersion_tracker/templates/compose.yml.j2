@@ -11,6 +11,7 @@ services:
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://alloy:4318/v1/traces
       OTEL_SDK_DISABLED: false
       OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: http/protobuf
+      FARO_RECEIVER_URL: http://alloy:12347/collect
 
     networks:
       - mongodb_app
